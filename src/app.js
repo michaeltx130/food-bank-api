@@ -42,9 +42,9 @@ app.use((err, req, res, next) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`\n🚀 ${BANCO_NAME} iniciado`);
-  console.log(`📍 URL: ${MI_NODO}`);
-  console.log(`🔌 Puerto: ${PORT}\n`);
+  console.log(`\n ${BANCO_NAME} iniciado`);
+  console.log(` URL: ${MI_NODO}`);
+  console.log(` Puerto: ${PORT}\n`);
 });
 
 module.exports = app;
