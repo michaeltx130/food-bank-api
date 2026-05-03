@@ -21,7 +21,9 @@ app.get('/', (req, res) => {
       estado: '/status',
       baseDatos: '/status/db',
       nodos: '/api/nodos/estado',
-      productos: '/api/productos'
+      productos: '/api/productos',
+      categorias: '/api/categorias',
+      agregar_productos: '/api/agregar_productos',
     }
   });
 });
