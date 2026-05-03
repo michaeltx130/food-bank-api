@@ -5,12 +5,12 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "food-banks": "concurrently \"PORT=3001 DB_NAME=Comondu node index.js\"  \"PORT=3002 DB_NAME=LaPaz node index.js\" \"PORT=3003 DB_NAME=Loreto node index.js\" \"PORT=3004 DB_NAME=Mulege node index.js\"",
+    "food-banks": "concurrently \"npm run start:comondu\" \"npm run start:lapaz\" \"npm run start:loreto\" \"npm run start:mulege\"",
     "start:comondu": "node --require dotenv/config index.js dotenv_config_path=nodes/comondu.env",
     "start:loreto": "node --require dotenv/config index.js dotenv_config_path=nodes/loreto.env",
     "start:lapaz": "node --require dotenv/config index.js dotenv_config_path=nodes/lapaz.env",
     "start:mulege": "node --require dotenv/config index.js dotenv_config_path=nodes/mulege.env",
-    "dev": "concurrently \"npm run start:comondu\" \"npm run start:loreto\" \"npm run start:lapaz\" \"npm run start:mulege\"",
+    "dev": "concurrently \"npm run start:comondu\" \"npm run start:lapaz\" \"npm run start:loreto\" \"npm run start:mulege\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
