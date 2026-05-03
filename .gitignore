@@ -1,0 +1,46 @@
+# Dependencias
+node_modules/
+package-lock.json
+yarn.lock
+
+# Archivos de entorno (contienen contraseñas)
+.env
+.env.local
+.env.*.local
+nodes/*.env
+
+# IDE y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Módulos del sistema
+.npm
+.eslintcache
+
+# Base de datos local
+*.db
+*.sqlite
+*.sql.bak
+
+# Carpeta de distribución/build
+dist/
+build/
+
+# Caché
+.cache/
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp

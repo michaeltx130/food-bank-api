@@ -1,0 +1,14 @@
+const dotenv = require('dotenv');
+const path = require('path');
+
+const nodo = process.argv[2] || 'comondu'; //si no se especifica un nodo, se usará 'comondu' por defecto, asi el programa no truena
+
+dotenv.config({
+  path: path.resolve(__dirname, `nodes/${nodo}.env`)
+});
+
+const app = require('./src/app');
+
+app.listen(process.env.PORT, () => {
+  console.log(`Nodo ${nodo} corriendo en ${process.env.PORT}`);
+});
