@@ -12,16 +12,17 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+const probarConexion = async () => {
+  const conn = await pool.getConnection();
+  conn.release();
 
-pool.getConnection()
-  .then(conn => {
-    console.log(`BD conectada: ${process.env.DB_NAME}`);
-    console.log(`Banco: ${process.env.BANCO_NAME}`);
-    conn.release();
-  })
-  .catch(err => {
-    console.error('XXX Error de conexión:', err.message);
-    process.exit(1);
-  });
+  return {
+    database: process.env.DB_NAME,
+    banco: process.env.BANCO_NAME
+  };
+};
 
-module.exports = { db: pool };
+module.exports = {
+  db: pool,
+  probarConexion
+};

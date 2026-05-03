@@ -17,19 +17,19 @@ if errorlevel 1 (
 
 REM Iniciar cada nodo en una ventana separada
 echo  Iniciando Comondu (puerto 3001)...
-start "Comondu" cmd /k "cd /d %~dp0 && set DOTENV_PATH=nodes/comondu.env && node --require dotenv/config index.js"
+start "Comondu" cmd /k "cd /d %~dp0 && node --require dotenv/config index.js dotenv_config_path=nodes/comondu.env"
 timeout /t 1 >nul
 
 echo  Iniciando Loreto (puerto 3002)...
-start "Loreto" cmd /k "cd /d %~dp0 && set DOTENV_PATH=nodes/loreto.env && node --require dotenv/config index.js"
+start "Loreto" cmd /k "cd /d %~dp0 && node --require dotenv/config index.js dotenv_config_path=nodes/loreto.env"
 timeout /t 1 >nul
 
 echo  Iniciando La Paz (puerto 3003)...
-start "La Paz" cmd /k "cd /d %~dp0 && set DOTENV_PATH=nodes/lapaz.env && node --require dotenv/config index.js"
+start "La Paz" cmd /k "cd /d %~dp0 && node --require dotenv/config index.js dotenv_config_path=nodes/lapaz.env"
 timeout /t 1 >nul
 
 echo  Iniciando Mulege (puerto 3004)...
-start "Mulege" cmd /k "cd /d %~dp0 && set DOTENV_PATH=nodes/mulege.env && node --require dotenv/config index.js"
+start "Mulege" cmd /k "cd /d %~dp0 && node --require dotenv/config index.js dotenv_config_path=nodes/mulege.env"
 timeout /t 1 >nul
 
 echo.

@@ -16,7 +16,7 @@ function Start-Node {
     Write-Host "- Iniciando $bancoNombre (puerto $puerto)..." -ForegroundColor Yellow
     
     # Crear proceso en una nueva ventana
-    $process = Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$PSScriptRoot`"; `$env:NODE_ENV='production'; node --require dotenv/config index.js" -EnvironmentVariable @{'DOTENV_PATH'="nodes/$envFile"} -PassThru
+    $process = Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$PSScriptRoot`"; `$env:NODE_ENV='development'; node --require dotenv/config index.js dotenv_config_path=nodes/$envFile" -PassThru
     
     Write-Host "- $bancoNombre iniciado (PID: $($process.Id))" -ForegroundColor Green
     Start-Sleep -Milliseconds 500

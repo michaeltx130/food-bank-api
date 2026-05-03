@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+const { probarConexion } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,10 +12,6 @@ const MI_NODO = process.env.MI_NODO || `http://localhost:${PORT}`;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Importar servicios
-const { db } = require('./config/db');
-const { NODOS } = require('./services/nodo.service');
 
 // Rutas de salud y estado
 app.get('/status', (req, res) => {
@@ -28,6 +24,22 @@ app.get('/status', (req, res) => {
   });
 });
 
+app.get('/status/db', async (req, res) => {
+  try {
+    const datos = await probarConexion();
+
+    res.json({
+      estado: 'activo',
+      ...datos
+    });
+  } catch (error) {
+    res.status(503).json({
+      estado: 'inactivo',
+      error: error.message
+    });
+  }
+});
+
 // Rutas de ejemplo
 app.use('/api', require('./routes/exampleRoute'));
 
@@ -38,13 +50,6 @@ app.use((err, req, res, next) => {
     error: 'Error interno del servidor',
     mensaje: err.message
   });
-});
-
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`\n ${BANCO_NAME} iniciado`);
-  console.log(` URL: ${MI_NODO}`);
-  console.log(` Puerto: ${PORT}\n`);
 });
 
 module.exports = app;
