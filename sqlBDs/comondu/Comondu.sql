@@ -30,3 +30,5 @@ CREATE TABLE movimientos (
 
 INSERT INTO categorias (nombre) VALUES ('Granos'), ('Enlatados');
 INSERT INTO productos (nombre, categoria_id, cantidad) VALUES ('Arroz',1,100);
+
+SELECT * FROM productos;

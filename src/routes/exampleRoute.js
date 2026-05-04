@@ -77,20 +77,56 @@ router.post('/agregar_productos', async (req, res) => {
 });
 
 router.post('/recibir_productos', async (req, res) => {
+  let conn;
+
   try {
     const { nombre, categoria_id, cantidad } = req.body;
+    const categoriaId = Number(categoria_id);
+    const cantidadNumero = Number(cantidad);
 
-    const [rows] = await db.query('SELECT * FROM productos WHERE nombre = ?', [nombre]);
+    if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
+      return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
+    }
+
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query('SELECT * FROM productos WHERE nombre = ? FOR UPDATE', [nombre]);
 
     if (rows.length > 0) {
-      await db.query('UPDATE productos SET cantidad = cantidad + ? WHERE nombre = ?', [cantidad, nombre]);
-      res.json({ mensaje: 'Cantidad actualizada', producto: nombre, cantidad_sumada: cantidad });
+      await conn.query('UPDATE productos SET cantidad = cantidad + ? WHERE id = ?', [cantidadNumero, rows[0].id]);
+      await conn.commit();
+
+      return res.json({
+        mensaje: 'Cantidad actualizada',
+        producto: nombre,
+        cantidad_sumada: cantidadNumero,
+        transaccion: { estado: 'commit', operacion: 'sumar_en_destino' }
+      });
     } else {
-      await db.query('INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)', [nombre, categoria_id, cantidad]);
-      res.json({ mensaje: 'Producto creado', producto: nombre, cantidad });
+      await conn.query('INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)', [nombre, categoriaId, cantidadNumero]);
+      await conn.commit();
+
+      return res.json({
+        mensaje: 'Producto creado',
+        producto: nombre,
+        cantidad: cantidadNumero,
+        transaccion: { estado: 'commit', operacion: 'crear_en_destino' }
+      });
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (conn) {
+      await conn.rollback().catch(rollbackError => {
+        console.error('Error al revertir recepcion:', rollbackError.message);
+      });
+    }
+
+    res.status(500).json({
+      error: error.message,
+      transaccion: { estado: 'rollback', operacion: 'recibir_producto' }
+    });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
@@ -122,48 +158,94 @@ router.get('/red/tabla/:nombre', async (req, res) => {
 });
 
 router.post('/red/productos/enviar', async (req, res) => {
+  let conn;
+
   try {
     const { destino, producto_id, cantidad } = req.body;
+    const productoId = Number(producto_id);
+    const cantidadNumero = Number(cantidad);
 
-    if (!destino || !producto_id || !cantidad) {
-      return res.status(400).json({ error: 'Faltan campos: destino, producto_id, cantidad' });
+    if (!destino || !Number.isInteger(productoId) || productoId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
+      return res.status(400).json({ error: 'Faltan campos validos: destino, producto_id, cantidad' });
     }
 
-    // 1. Verificar que hay suficiente cantidad en origen
-    const [rows] = await db.query('SELECT * FROM productos WHERE id = ?', [producto_id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
-
-    const producto = rows[0];
-    if (producto.cantidad < cantidad) {
-      return res.status(400).json({ error: `Stock insuficiente. Disponible: ${producto.cantidad}` });
-    }
-
-    // 2. Restar en origen
-    await db.query('UPDATE productos SET cantidad = cantidad - ? WHERE id = ?', [cantidad, producto_id]);
-
-    // 3. Enviar al destino para que sume
     const { enviarA, NODOS_MAP } = require('../services/nodo.service');
-    const url_destino = NODOS_MAP[destino.toLowerCase()];
+    const url_destino = NODOS_MAP[String(destino).toLowerCase()];
     if (!url_destino) {
       return res.status(400).json({ error: `Banco '${destino}' no reconocido.` });
     }
 
+    if (url_destino === MI_NODO) {
+      return res.status(400).json({ error: 'El destino no puede ser el mismo nodo origen.' });
+    }
+
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    // Bloquea el producto mientras se valida y se descuenta el inventario.
+    const [rows] = await conn.query('SELECT * FROM productos WHERE id = ? FOR UPDATE', [productoId]);
+    if (rows.length === 0) {
+      const error = new Error('Producto no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const producto = rows[0];
+    if (producto.cantidad < cantidadNumero) {
+      const error = new Error(`Stock insuficiente. Disponible: ${producto.cantidad}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await conn.query('UPDATE productos SET cantidad = cantidad - ? WHERE id = ?', [cantidadNumero, productoId]);
+
     const resultado = await enviarA(url_destino, '/api/recibir_productos', {
       nombre: producto.nombre,
       categoria_id: producto.categoria_id,
-      cantidad
+      cantidad: cantidadNumero
     });
 
+    if (!resultado.exito) {
+      const error = new Error('El destino no confirmo la recepcion. Inventario revertido en origen.');
+      error.statusCode = 502;
+      error.resultado = resultado;
+      throw error;
+    }
+
+    await conn.commit();
+
     res.json({
-      mensaje: resultado.exito ? 'Transferencia exitosa' : 'Error al enviar al destino',
+      mensaje: 'Transferencia exitosa',
       origen: process.env.BANCO_NAME,
       destino,
       producto: producto.nombre,
-      cantidad_transferida: cantidad,
+      cantidad_transferida: cantidadNumero,
+      transaccion: {
+        estado: 'commit',
+        origen: `${producto.cantidad} -> ${producto.cantidad - cantidadNumero}`,
+        destino: 'confirmado'
+      },
       resultado
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (conn) {
+      await conn.rollback().catch(rollbackError => {
+        console.error('Error al revertir transferencia:', rollbackError.message);
+      });
+    }
+
+    res.status(error.statusCode || 500).json({
+      error: error.message,
+      origen: process.env.BANCO_NAME,
+      destino: req.body.destino,
+      transaccion: {
+        estado: 'rollback',
+        origen: 'sin cambios confirmados'
+      },
+      resultado: error.resultado
+    });
+  } finally {
+    if (conn) conn.release();
   }
 });
 

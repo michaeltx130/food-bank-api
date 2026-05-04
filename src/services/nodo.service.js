@@ -68,7 +68,14 @@ const enviarA = async (nodo, endpoint, datos) => {
     const response = await axios.post(`${nodo}${endpoint}`, datos, { timeout: 5000 });
     return { exito: true, datos: response.data };
   } catch (error) {
-    return { exito: false, error: error.message };
+    const mensaje = error.response?.data?.error || error.message || error.code || 'No se pudo contactar el nodo';
+
+    return {
+      exito: false,
+      status: error.response?.status,
+      error: mensaje,
+      datos: error.response?.data
+    };
   }
 };
 

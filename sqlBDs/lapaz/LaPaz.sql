@@ -28,3 +28,5 @@ CREATE TABLE entregas (
 
 INSERT INTO categorias (nombre) VALUES ('Lácteos');
 INSERT INTO productos (nombre, categoria_id, cantidad) VALUES ('Leche',1,50);
+
+SELECT * FROM productos;
