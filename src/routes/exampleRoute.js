@@ -13,6 +13,21 @@ const {
   seleccionarDestinosSync
 } = require('../services/sync.service');
 
+const normalizarNombreProducto = (nombre) => String(nombre).toLowerCase().replace(/\s+/g, '');
+
+const buscarProductoPorNombreNormalizado = async (conn, nombre) => {
+  const [rows] = await conn.query(
+    `SELECT *
+     FROM productos
+     WHERE LOWER(REPLACE(nombre, ' ', '')) = ?
+     LIMIT 1
+     FOR UPDATE`,
+    [normalizarNombreProducto(nombre)]
+  );
+
+  return rows[0];
+};
+
 router.get('/nodos/estado', async (req, res) => {
   try {
     const estados = await obtenerEstadoNodos();
@@ -70,30 +85,69 @@ router.get('/tabla/:nombre', async (req, res) => {
 });
 
 router.post('/agregar_productos', async (req, res) => {
+  let conn;
+
   try {
     const { nombre, categoria_id, cantidad } = req.body;
+    const categoriaId = Number(categoria_id);
+    const cantidadNumero = Number(cantidad);
 
-    if (!nombre || !categoria_id || cantidad === undefined) {
-      return res.status(400).json({ error: 'Faltan campos: nombre, categoria_id, cantidad' });
+    if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
+      return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
     }
 
-    const [result] = await db.query(
-      'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
-      [nombre, categoria_id, cantidad]
-    );
+    conn = await db.getConnection();
+    await conn.beginTransaction();
 
-    res.status(201).json({
+    const productoExistente = await buscarProductoPorNombreNormalizado(conn, nombre);
+
+    if (productoExistente) {
+      await conn.query(
+        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
+        [cantidadNumero, productoExistente.id]
+      );
+      await conn.commit();
+
+      return res.json({
+        mensaje: 'Cantidad actualizada',
+        banco: process.env.BANCO_NAME,
+        producto: {
+          id: productoExistente.id,
+          nombre: productoExistente.nombre,
+          categoria_id: productoExistente.categoria_id,
+          cantidad_anterior: productoExistente.cantidad,
+          cantidad_sumada: cantidadNumero,
+          cantidad_actual: productoExistente.cantidad + cantidadNumero
+        }
+      });
+    }
+
+    const [result] = await conn.query(
+      'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
+      [nombre, categoriaId, cantidadNumero]
+    );
+    await conn.commit();
+
+    return res.status(201).json({
       mensaje: 'Producto creado',
       banco: process.env.BANCO_NAME,
       producto: {
         id: result.insertId,
         nombre,
-        categoria_id,
-        cantidad
+        categoria_id: categoriaId,
+        cantidad: cantidadNumero
       }
     });
   } catch (error) {
+    if (conn) {
+      await conn.rollback().catch(rollbackError => {
+        console.error('Error al revertir alta de producto:', rollbackError.message);
+      });
+    }
+
     res.status(500).json({ error: error.message });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
@@ -112,15 +166,15 @@ router.post('/recibir_productos', async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const [rows] = await conn.query('SELECT * FROM productos WHERE nombre = ? FOR UPDATE', [nombre]);
+    const productoExistente = await buscarProductoPorNombreNormalizado(conn, nombre);
 
-    if (rows.length > 0) {
-      await conn.query('UPDATE productos SET cantidad = cantidad + ? WHERE id = ?', [cantidadNumero, rows[0].id]);
+    if (productoExistente) {
+      await conn.query('UPDATE productos SET cantidad = cantidad + ? WHERE id = ?', [cantidadNumero, productoExistente.id]);
       await conn.commit();
 
       return res.json({
         mensaje: 'Cantidad actualizada',
-        producto: nombre,
+        producto: productoExistente.nombre,
         cantidad_sumada: cantidadNumero,
         transaccion: { estado: 'commit', operacion: 'sumar_en_destino' }
       });
