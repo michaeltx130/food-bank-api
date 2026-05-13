@@ -24,11 +24,13 @@ app.get('/', (req, res) => {
       productos: '/api/productos',
       categorias: '/api/categorias',
       agregar_productos: '/api/agregar_productos',
+      recibir_evento_sync: '/api/sync/events/recibir',
+      enviar_eventos_sync: '/api/sync/push'
     }
   });
 });
 
-// Rutas de salud y estado
+// Rutas
 app.get('/status', (req, res) => {
   res.json({
     banco: BANCO_NAME,
@@ -55,14 +57,13 @@ app.get('/status/db', async (req, res) => {
   }
 });
 
-// Rutas de ejemplo
 app.use('/api', require('./routes/exampleRoute'));
 
 app.use((req, res) => {
   res.status(404).json({
     error: 'Ruta no encontrada',
     ruta: req.originalUrl,
-    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos']
+    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos', '/api/sync/push']
   });
 });
 
