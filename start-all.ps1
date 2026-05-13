@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 # Script para iniciar todos los nodos del sistema distribuido
 
-Write-Host "- Iniciando PeruFood - Sistema Distribuido" -ForegroundColor Green
+Write-Host "- Iniciando FoodBank - Sistema Distribuido" -ForegroundColor Green
 Write-Host "- Bancos de Alimentos" -ForegroundColor Cyan
 Write-Host ""
 
@@ -29,7 +29,7 @@ Start-Node "Mulege" "mulege.env" 3004
 Write-Host ""
 Write-Host "- Todos los bancos se estan iniciando..." -ForegroundColor Green
 Write-Host ""
-Write-Host "- URLs disponibles:" -ForegroundColor Cyan
+Write-Host "- URLs disponibles:" -ForegroundColor Green
 Write-Host "  - Comondu: http://localhost:3001/status" -ForegroundColor White
 Write-Host "  - La Paz:  http://localhost:3002/status" -ForegroundColor White
 Write-Host "  - Loreto:  http://localhost:3003/status" -ForegroundColor White

@@ -32,6 +32,7 @@ CREATE TABLE transferencias (
 CREATE TABLE sync_events (
   id INT AUTO_INCREMENT PRIMARY KEY,
   evento_id VARCHAR(80) NOT NULL UNIQUE,
+  topic VARCHAR(100),
   tipo VARCHAR(60) NOT NULL,
   origen VARCHAR(100) NOT NULL,
   destino VARCHAR(100),

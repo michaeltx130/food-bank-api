@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/db');
-const { obtenerEstadoNodos, sincronizarCon, obtenerDe, NODOS, NODOS_MAP, MI_NODO, BANCO_ID, enviarA } = require('../services/nodo.service');
+const { obtenerEstadoNodos, obtenerDe, MI_NODO, BANCO_ID } = require('../services/nodo.service');
 const {
   BANCO_NAME,
   crearId,
   asegurarInfraestructuraSync,
   insertarTransferencia,
-  registrarEventoSync,
-  aplicarEventoSync,
-  parsearPayload,
-  seleccionarDestinosSync
+  registrarEventoSync
 } = require('../services/sync.service');
+const {
+  TOPICS,
+  kafkaDisponible,
+  publicarEventosPendientes
+} = require('../events/kafka/kafka.service');
 
 const normalizarNombreProducto = (nombre) => String(nombre).toLowerCase().replace(/\s+/g, '');
 
@@ -35,6 +37,21 @@ router.get('/nodos/estado', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+router.get('/sync/estado', (req, res) => {
+  res.json({
+    banco: process.env.BANCO_NAME,
+    sync_driver: process.env.SYNC_DRIVER || 'kafka',
+    kafka: {
+      disponible: kafkaDisponible(),
+      brokers: process.env.KAFKA_BROKERS || 'localhost:9092'
+    },
+    rabbitmq: {
+      habilitado: process.env.RABBITMQ_ENABLED !== 'false',
+      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672'
+    }
+  });
 });
 
 /////////////////////////////////////////  Tablas Locales /////////////////////////////////////////////////////
@@ -245,7 +262,7 @@ router.post('/red/productos/enviar', async (req, res) => {
       return res.status(400).json({ error: 'Faltan campos validos: destino, producto_id, cantidad' });
     }
 
-    const { enviarA, NODOS_MAP } = require('../services/nodo.service');
+    const { NODOS_MAP } = require('../services/nodo.service');
     const url_destino = NODOS_MAP[String(destino).toLowerCase()];
     if (!url_destino) {
       return res.status(400).json({ error: `Banco '${destino}' no reconocido.` });
@@ -301,19 +318,6 @@ router.post('/red/productos/enviar', async (req, res) => {
       ['DESCONTADO_ORIGEN', transferenciaId]
     );
 
-    const resultado = await enviarA(url_destino, '/api/recibir_productos', {
-      nombre: producto.nombre,
-      categoria_id: producto.categoria_id,
-      cantidad: cantidadNumero
-    });
-
-    if (!resultado.exito) {
-      const error = new Error('El destino no confirmo la recepcion. Inventario revertido en origen.');
-      error.statusCode = 502;
-      error.resultado = resultado;
-      throw error;
-    }
-
     const payloadEvento = {
       transferencia_id: transferenciaId,
       producto_id: productoId,
@@ -324,27 +328,33 @@ router.post('/red/productos/enviar', async (req, res) => {
       origen_nombre: BANCO_NAME,
       destino: String(destino).toLowerCase(),
       destino_url: url_destino,
-      estado: 'COMPLETADO'
+      estado: 'DESCONTADO_ORIGEN'
     };
-
-    await conn.query(
-      'UPDATE transferencias SET estado = ?, error = NULL WHERE transferencia_id = ?',
-      ['COMPLETADO', transferenciaId]
-    );
 
     await registrarEventoSync(conn, {
       evento_id: eventoId,
-      tipo: 'TRANSFERENCIA_COMPLETADA',
+      topic: TOPICS.TRANSFER_REQUESTED,
+      tipo: 'TRANSFER_REQUESTED',
       origen: BANCO_ID,
-      destino: '*',
+      destino: String(destino).toLowerCase(),
       payload: payloadEvento,
       estado: 'pendiente'
     });
 
     await conn.commit();
 
-    res.json({
-      mensaje: 'Transferencia exitosa',
+    let eventosKafka = [];
+    let advertenciaKafka;
+
+    try {
+      eventosKafka = await publicarEventosPendientes(10);
+    } catch (error) {
+      advertenciaKafka = `La transferencia quedo en outbox pendiente de publicar: ${error.message}`;
+    }
+
+    return res.status(202).json({
+      mensaje: advertenciaKafka || 'Transferencia registrada y publicada en Kafka',
+      modo: 'kafka',
       origen: process.env.BANCO_NAME,
       destino,
       transferencia_id: transferenciaId,
@@ -354,9 +364,10 @@ router.post('/red/productos/enviar', async (req, res) => {
       transaccion: {
         estado: 'commit',
         origen: `${producto.cantidad} -> ${producto.cantidad - cantidadNumero}`,
-        destino: 'confirmado'
+        destino: 'pendiente_por_evento_kafka'
       },
-      resultado
+      eventosKafka,
+      advertencia: advertenciaKafka
     });
   } catch (error) {
     if (conn) {
@@ -391,142 +402,17 @@ router.post('/red/productos/enviar', async (req, res) => {
 
 /////////////////////////////////////////  Sincronizacion /////////////////////////////////////////////////////
 
-router.post('/sync/events/recibir', async (req, res) => {
-  let conn;
-
-  try {
-    const { evento_id, tipo, origen, payload } = req.body;
-
-    if (!evento_id || !tipo || !origen || !payload) {
-      return res.status(400).json({ error: 'Faltan campos: evento_id, tipo, origen, payload' });
-    }
-
-    await asegurarInfraestructuraSync();
-
-    conn = await db.getConnection();
-    await conn.beginTransaction();
-
-    const [recibido] = await conn.query(
-      'SELECT * FROM sync_events_recibidos WHERE evento_id = ? LIMIT 1 FOR UPDATE',
-      [evento_id]
-    );
-
-    if (recibido.length > 0) {
-      await conn.commit();
-      return res.json({
-        mensaje: 'Evento ya recibido previamente',
-        evento_id,
-        duplicado: true,
-        estado: recibido[0].estado
-      });
-    }
-
-    await conn.query(
-      `INSERT INTO sync_events_recibidos (
-        evento_id,
-        tipo,
-        origen,
-        payload,
-        estado
-      ) VALUES (?, ?, ?, ?, ?)`,
-      [evento_id, tipo, origen, JSON.stringify(parsearPayload(payload)), 'recibido']
-    );
-
-    const aplicacion = await aplicarEventoSync(conn, { evento_id, tipo, origen, payload });
-
-    await conn.query(
-      `UPDATE sync_events_recibidos
-       SET estado = ?, applied_at = CURRENT_TIMESTAMP
-       WHERE evento_id = ?`,
-      ['aplicado', evento_id]
-    );
-
-    await conn.commit();
-
-    res.json({
-      mensaje: 'Evento recibido y aplicado',
-      evento_id,
-      duplicado: false,
-      aplicacion
-    });
-  } catch (error) {
-    if (conn) {
-      await conn.rollback().catch(rollbackError => {
-        console.error('Error al revertir evento recibido:', rollbackError.message);
-      });
-    }
-
-    res.status(500).json({
-      error: error.message,
-      evento_id: req.body.evento_id,
-      transaccion: { estado: 'rollback', operacion: 'recibir_evento_sync' }
-    });
-  } finally {
-    if (conn) conn.release();
-  }
-});
-
 router.post('/sync/push', async (req, res) => {
   try {
     const limite = Math.min(Number(req.body.limit || req.query.limit || 20), 100);
-    const destino = req.body.destino || req.query.destino;
 
     await asegurarInfraestructuraSync();
 
-    const [eventos] = await db.query(
-      `SELECT *
-       FROM sync_events
-       WHERE estado IN ('pendiente', 'fallido')
-       ORDER BY created_at ASC
-       LIMIT ?`,
-      [limite]
-    );
+    const resultados = await publicarEventosPendientes(limite);
 
-    const resultados = [];
-
-    for (const evento of eventos) {
-      const destinos = seleccionarDestinosSync(evento, destino);
-      const payload = parsearPayload(evento.payload);
-      const respuestas = [];
-
-      for (const nodo of destinos) {
-        const respuesta = await enviarA(nodo.url, '/api/sync/events/recibir', {
-          evento_id: evento.evento_id,
-          tipo: evento.tipo,
-          origen: evento.origen,
-          destino: evento.destino,
-          payload,
-          created_at: evento.created_at
-        });
-
-        respuestas.push({
-          nodo: nodo.nombre,
-          url: nodo.url,
-          ...respuesta
-        });
-      }
-
-      const exitoso = respuestas.length > 0 && respuestas.every(r => r.exito);
-      const estado = exitoso ? 'enviado' : 'fallido';
-      const ultimoError = exitoso ? null : JSON.stringify(respuestas.filter(r => !r.exito));
-
-      await db.query(
-        `UPDATE sync_events
-         SET estado = ?, intentos = intentos + 1, ultimo_error = ?
-         WHERE evento_id = ?`,
-        [estado, ultimoError, evento.evento_id]
-      );
-
-      resultados.push({
-        evento_id: evento.evento_id,
-        tipo: evento.tipo,
-        estado,
-        destinos: respuestas
-      });
-    }
-
-    res.json({
+    return res.json({
       banco: process.env.BANCO_NAME,
+      modo: 'kafka',
       eventos_procesados: resultados.length,
       resultados
     });

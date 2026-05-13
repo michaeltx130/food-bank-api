@@ -1,6 +1,5 @@
 const { randomUUID } = require('crypto');
 const { db } = require('../config/db');
-const { MI_NODO, NODOS_MAP } = require('./nodo.service');
 
 const BANCO_ID = process.env.BANCO_ID || 'default';
 const BANCO_NAME = process.env.BANCO_NAME || BANCO_ID;
@@ -83,6 +82,7 @@ const asegurarInfraestructuraSync = async () => {
     CREATE TABLE IF NOT EXISTS sync_events (
       id INT AUTO_INCREMENT PRIMARY KEY,
       evento_id VARCHAR(80) NOT NULL,
+      topic VARCHAR(100) NULL,
       tipo VARCHAR(60) NOT NULL,
       origen VARCHAR(100) NOT NULL,
       destino VARCHAR(100) NULL,
@@ -95,6 +95,8 @@ const asegurarInfraestructuraSync = async () => {
       UNIQUE KEY uq_sync_events_evento_id (evento_id)
     )
   `);
+
+  await asegurarColumna('sync_events', 'topic', 'VARCHAR(100) NULL');
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS sync_events_recibidos (
@@ -145,14 +147,16 @@ const registrarEventoSync = async (conn, evento) => {
   await conn.query(
     `INSERT INTO sync_events (
       evento_id,
+      topic,
       tipo,
       origen,
       destino,
       payload,
       estado
-    ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       evento.evento_id,
+      evento.topic || evento.tipo,
       evento.tipo,
       evento.origen || BANCO_ID,
       evento.destino || '*',
@@ -160,47 +164,6 @@ const registrarEventoSync = async (conn, evento) => {
       evento.estado || 'pendiente'
     ]
   );
-};
-
-const aplicarEventoSync = async (conn, evento) => {
-  const payload = parsearPayload(evento.payload);
-
-  if (evento.tipo !== 'TRANSFERENCIA_COMPLETADA') {
-    return { accion: 'ignorado', motivo: `Tipo no soportado: ${evento.tipo}` };
-  }
-
-  const [existente] = await conn.query(
-    'SELECT id FROM transferencias WHERE transferencia_id = ? LIMIT 1',
-    [payload.transferencia_id]
-  );
-
-  if (existente.length > 0) {
-    return { accion: 'ya_existia', transferencia_id: payload.transferencia_id };
-  }
-
-  await insertarTransferencia(conn, {
-    transferencia_id: payload.transferencia_id,
-    producto_id: payload.producto_id,
-    producto_nombre: payload.producto_nombre,
-    categoria_id: payload.categoria_id,
-    cantidad: payload.cantidad,
-    origen: payload.origen,
-    destino: payload.destino,
-    estado: payload.estado || 'COMPLETADO',
-    evento_id: evento.evento_id
-  });
-
-  return { accion: 'transferencia_replicada', transferencia_id: payload.transferencia_id };
-};
-
-const seleccionarDestinosSync = (evento, destinoSolicitado) => {
-  const destinoEvento = evento.destino && evento.destino !== '*' ? evento.destino.toLowerCase() : null;
-  const destinoFiltro = destinoSolicitado ? String(destinoSolicitado).toLowerCase() : destinoEvento;
-
-  return Object.entries(NODOS_MAP)
-    .filter(([nombre, url]) => url !== MI_NODO)
-    .filter(([nombre]) => !destinoFiltro || nombre === destinoFiltro)
-    .map(([nombre, url]) => ({ nombre, url }));
 };
 
 module.exports = {
@@ -211,7 +174,5 @@ module.exports = {
   parsearPayload,
   asegurarInfraestructuraSync,
   insertarTransferencia,
-  registrarEventoSync,
-  aplicarEventoSync,
-  seleccionarDestinosSync
+  registrarEventoSync
 };

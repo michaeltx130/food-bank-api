@@ -24,8 +24,8 @@ app.get('/', (req, res) => {
       productos: '/api/productos',
       categorias: '/api/categorias',
       agregar_productos: '/api/agregar_productos',
-      recibir_evento_sync: '/api/sync/events/recibir',
-      enviar_eventos_sync: '/api/sync/push'
+      estado_sync: '/api/sync/estado',
+      publicar_eventos_kafka: '/api/sync/push'
     }
   });
 });
@@ -63,7 +63,7 @@ app.use((req, res) => {
   res.status(404).json({
     error: 'Ruta no encontrada',
     ruta: req.originalUrl,
-    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos', '/api/sync/push']
+    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos', '/api/sync/estado', '/api/sync/push']
   });
 });
 
