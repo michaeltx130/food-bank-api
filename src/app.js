@@ -12,6 +12,7 @@ const MI_NODO = process.env.MI_NODO || `http://localhost:${PORT}`;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+const NODO_PREFIX = process.env.NODO_PREFIX || 'nodo';
 
 app.get('/', (req, res) => {
   res.json({
@@ -20,10 +21,8 @@ app.get('/', (req, res) => {
     endpoints: {
       estado: '/status',
       baseDatos: '/status/db',
-      nodos: '/api/nodos/estado',
-      productos: '/api/productos',
-      categorias: '/api/categorias',
-      agregar_productos: '/api/agregar_productos',
+      productos: `/api/${NODO_PREFIX}/productos`,
+      categorias: `/api/${NODO_PREFIX}/categorias`,
       estado_sync: '/api/sync/estado',
       publicar_eventos_kafka: '/api/sync/push'
     }
@@ -58,6 +57,11 @@ app.get('/status/db', async (req, res) => {
 });
 
 app.use('/api', require('./routes/exampleRoute'));
+app.use(`/api/${NODO_PREFIX}`, require(`./routes/${NODO_PREFIX}Routes`));
+// app.use('/api/comondu', require('./routes/comonduRoutes'));
+// app.use('/api/lapaz', require('./routes/lapazRoutes'));
+// app.use('/api/loreto', require('./routes/loretoRoutes'));
+// app.use('/api/mulege', require('./routes/mulegeRoutes'));
 
 app.use((req, res) => {
   res.status(404).json({

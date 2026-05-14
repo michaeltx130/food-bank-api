@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/loreto"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model categorias {
+  id        Int        @id @default(autoincrement()) @db.TinyInt
+  nombre    String?
+  productos productos[]
+}
+
+model productos {
+  id              Int              @id @default(autoincrement())
+  nombre          String?
+  categoria_id    Int?             @db.TinyInt
+  cantidad        Int?
+  categoria       categorias?      @relation(fields: [categoria_id], references: [id])
+  transferencias  transferencias[]
+}
+
+model transferencias {
+  id          Int       @id @default(autoincrement())
+  producto_id Int?
+  cantidad    Int?
+  destino     String?
+  fecha       DateTime? @default(now())
+  producto    productos? @relation(fields: [producto_id], references: [id])
+}

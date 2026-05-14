@@ -43,3 +43,5 @@ build/
 tmp/
 temp/
 *.tmp
+
+/src/generated/

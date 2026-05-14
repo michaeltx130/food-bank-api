@@ -1,0 +1,251 @@
+const { lapaz } = require('../config/prisma');
+
+// ─────────────────────────────────────────
+//  CATEGORIAS
+// ─────────────────────────────────────────
+const categorias = {
+  getAll: async (req, res) => {
+    try {
+      const data = await lapaz.categorias.findMany({
+        include: { productos: true }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener categorias' });
+    }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const data = await lapaz.categorias.findUnique({
+        where: { id: Number(req.params.id) },
+        include: { productos: true }
+      });
+      if (!data) return res.status(404).json({ error: 'Categoria no encontrada' });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener categoria' });
+    }
+  },
+
+  create: async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      const data = await lapaz.categorias.create({ data: { nombre } });
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear categoria' });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      const data = await lapaz.categorias.update({
+        where: { id: Number(req.params.id) },
+        data: { nombre }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar categoria' });
+    }
+  },
+
+  delete: async (req, res) => {
+    try {
+      await lapaz.categorias.delete({ where: { id: Number(req.params.id) } });
+      res.json({ message: 'Categoria eliminada' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar categoria' });
+    }
+  }
+};
+
+// ─────────────────────────────────────────
+//  BENEFICIARIOS
+// ─────────────────────────────────────────
+const beneficiarios = {
+  getAll: async (req, res) => {
+    try {
+      const data = await lapaz.beneficiarios.findMany({
+        include: { entregas: true }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener beneficiarios' });
+    }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const data = await lapaz.beneficiarios.findUnique({
+        where: { id: Number(req.params.id) },
+        include: { entregas: true }
+      });
+      if (!data) return res.status(404).json({ error: 'Beneficiario no encontrado' });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener beneficiario' });
+    }
+  },
+
+  create: async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      const data = await lapaz.beneficiarios.create({ data: { nombre } });
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear beneficiario' });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      const data = await lapaz.beneficiarios.update({
+        where: { id: Number(req.params.id) },
+        data: { nombre }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar beneficiario' });
+    }
+  },
+
+  delete: async (req, res) => {
+    try {
+      await lapaz.beneficiarios.delete({ where: { id: Number(req.params.id) } });
+      res.json({ message: 'Beneficiario eliminado' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar beneficiario' });
+    }
+  }
+};
+
+// ─────────────────────────────────────────
+//  ENTREGAS
+// ─────────────────────────────────────────
+const entregas = {
+  getAll: async (req, res) => {
+    try {
+      const data = await lapaz.entregas.findMany({
+        include: { beneficiario: true, producto: true }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener entregas' });
+    }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const data = await lapaz.entregas.findUnique({
+        where: { id: Number(req.params.id) },
+        include: { beneficiario: true, producto: true }
+      });
+      if (!data) return res.status(404).json({ error: 'Entrega no encontrada' });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener entrega' });
+    }
+  },
+
+  create: async (req, res) => {
+    try {
+      const { beneficiario_id, producto_id, cantidad } = req.body;
+      const data = await lapaz.entregas.create({
+        data: { beneficiario_id, producto_id, cantidad }
+      });
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear entrega' });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const { beneficiario_id, producto_id, cantidad } = req.body;
+      const data = await lapaz.entregas.update({
+        where: { id: Number(req.params.id) },
+        data: { beneficiario_id, producto_id, cantidad }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar entrega' });
+    }
+  },
+
+  delete: async (req, res) => {
+    try {
+      await lapaz.entregas.delete({ where: { id: Number(req.params.id) } });
+      res.json({ message: 'Entrega eliminada' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar entrega' });
+    }
+  }
+};
+
+// ─────────────────────────────────────────
+//  PRODUCTOS
+// ─────────────────────────────────────────
+const productos = {
+  getAll: async (req, res) => {
+    try {
+      const data = await lapaz.productos.findMany({
+        include: { categoria: true, entregas: true }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener productos' });
+    }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const data = await lapaz.productos.findUnique({
+        where: { id: Number(req.params.id) },
+        include: { categoria: true, entregas: true }
+      });
+      if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener producto' });
+    }
+  },
+
+  create: async (req, res) => {
+    try {
+      const { nombre, categoria_id, cantidad } = req.body;
+      const data = await lapaz.productos.create({
+        data: { nombre, categoria_id, cantidad }
+      });
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear producto' });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const { nombre, categoria_id, cantidad } = req.body;
+      const data = await lapaz.productos.update({
+        where: { id: Number(req.params.id) },
+        data: { nombre, categoria_id, cantidad }
+      });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar producto' });
+    }
+  },
+
+  delete: async (req, res) => {
+    try {
+      await lapaz.productos.delete({ where: { id: Number(req.params.id) } });
+      res.json({ message: 'Producto eliminado' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar producto' });
+    }
+  }
+};
+
+module.exports = { categorias, beneficiarios, entregas, productos };

@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/comondu"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model categorias {
+  id          Int           @id @default(autoincrement()) @db.TinyInt
+  nombre      String
+  productos   productos[]
+}
+
+model donantes {
+  id       Int     @id @default(autoincrement())
+  nombre   String?
+  telefono String?
+}
+
+model movimientos {
+  id          Int        @id @default(autoincrement())
+  producto_id Int?
+  tipo        String?
+  cantidad    Int?
+  fecha       DateTime?  @default(now())
+  producto    productos? @relation(fields: [producto_id], references: [id])
+}
+
+model productos {
+  id           Int           @id @default(autoincrement())
+  nombre       String?
+  categoria_id Int?          @db.TinyInt
+  cantidad     Int?
+  categoria    categorias?   @relation(fields: [categoria_id], references: [id])
+  movimientos  movimientos[]
+}
