@@ -31,6 +31,11 @@ const TOPICS = {
 
 let producerPromise;
 let consumerStarted = false;
+let consumerStarting = false;
+let consumerRetryTimer;
+
+const KAFKA_CONSUMER_RETRY_MS = Number(process.env.KAFKA_CONSUMER_RETRY_MS || 5000);
+const KAFKA_CONSUMER_MAX_RETRY_MS = Number(process.env.KAFKA_CONSUMER_MAX_RETRY_MS || 30000);
 
 const kafkaDisponible = () => Boolean(Kafka);
 
@@ -278,32 +283,86 @@ const manejarTransferReceived = async (message) => {
   );
 };
 
-const iniciarConsumidorKafka = async () => {
-  if ((process.env.SYNC_DRIVER || 'kafka') !== 'kafka' || consumerStarted) {
-    return { iniciado: false, motivo: 'Kafka deshabilitado o ya iniciado' };
-  }
-
+const conectarConsumidorKafka = async () => {
   const kafka = crearKafka();
   const consumer = kafka.consumer({ groupId: `foodbank-${BANCO_ID}` });
 
-  await consumer.connect();
-  await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: false });
-  await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: false });
+  try {
+    await consumer.connect();
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: false });
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: false });
 
-  await consumer.run({
-    eachMessage: async ({ topic, message }) => {
-      if (topic === TOPICS.TRANSFER_REQUESTED) {
-        await manejarTransferRequested(message);
-      }
+    await consumer.run({
+      eachMessage: async ({ topic, message }) => {
+        if (topic === TOPICS.TRANSFER_REQUESTED) {
+          await manejarTransferRequested(message);
+        }
 
-      if (topic === TOPICS.TRANSFER_RECEIVED) {
-        await manejarTransferReceived(message);
+        if (topic === TOPICS.TRANSFER_RECEIVED) {
+          await manejarTransferReceived(message);
+        }
       }
+    });
+
+    consumerStarted = true;
+    return consumer;
+  } catch (error) {
+    await consumer.disconnect().catch(() => {});
+    throw error;
+  }
+};
+
+const programarReintentoConsumidor = (intento = 1) => {
+  if (consumerStarted || consumerRetryTimer) {
+    return;
+  }
+
+  const delay = Math.min(KAFKA_CONSUMER_RETRY_MS * intento, KAFKA_CONSUMER_MAX_RETRY_MS);
+
+  consumerRetryTimer = setTimeout(async () => {
+    consumerRetryTimer = null;
+
+    try {
+      await conectarConsumidorKafka();
+      console.log(`Kafka consumidor conectado despues de ${intento} reintento(s): ${KAFKA_BROKERS.join(', ')}`);
+    } catch (error) {
+      console.error(`Kafka consumidor no disponible, reintentando en ${delay}ms: ${error.message}`);
+      programarReintentoConsumidor(intento + 1);
     }
-  });
+  }, delay);
+};
 
-  consumerStarted = true;
-  return { iniciado: true, brokers: KAFKA_BROKERS };
+const iniciarConsumidorKafka = async () => {
+  if ((process.env.SYNC_DRIVER || 'kafka') !== 'kafka') {
+    return { iniciado: false, motivo: 'Kafka deshabilitado' };
+  }
+
+  if (consumerStarted) {
+    return { iniciado: false, motivo: 'Kafka ya iniciado' };
+  }
+
+  if (consumerStarting || consumerRetryTimer) {
+    return { iniciado: false, motivo: 'Kafka ya esta intentando conectar' };
+  }
+
+  consumerStarting = true;
+
+  try {
+    await conectarConsumidorKafka();
+    return { iniciado: true, brokers: KAFKA_BROKERS };
+  } catch (error) {
+    console.error(`Kafka consumidor no disponible al iniciar: ${error.message}`);
+    programarReintentoConsumidor();
+
+    return {
+      iniciado: false,
+      motivo: 'Kafka no disponible; reintentos programados',
+      error: error.message,
+      brokers: KAFKA_BROKERS
+    };
+  } finally {
+    consumerStarting = false;
+  }
 };
 
 module.exports = {

@@ -11,6 +11,11 @@
     "start:loreto": "node --require dotenv/config index.js dotenv_config_path=nodes/loreto.env",
     "start:lapaz": "node --require dotenv/config index.js dotenv_config_path=nodes/lapaz.env",
     "start:mulege": "node --require dotenv/config index.js dotenv_config_path=nodes/mulege.env",
+    "prisma:generate:comondu": "prisma generate --config=prisma.comondu.config.ts",
+    "prisma:generate:lapaz": "prisma generate --config=prisma.lapaz.config.ts",
+    "prisma:generate:loreto": "prisma generate --config=prisma.loreto.config.ts",
+    "prisma:generate:mulege": "prisma generate --config=prisma.mulege.config.ts",
+    "prisma:generate:all": "npm run prisma:generate:comondu && npm run prisma:generate:lapaz && npm run prisma:generate:loreto && npm run prisma:generate:mulege",
     "dev": "concurrently \"npm run start:comondu\" \"npm run start:lapaz\" \"npm run start:loreto\" \"npm run start:mulege\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
