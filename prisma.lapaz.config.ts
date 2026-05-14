@@ -1,5 +1,7 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { defineConfig } from "prisma/config";
+
+config({ path: "nodes/lapaz.env" }); 
 
 export default defineConfig({
   schema: "prisma/lapaz/schema.prisma",
