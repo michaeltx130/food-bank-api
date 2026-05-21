@@ -7,6 +7,12 @@ datasource db {
   provider = "mysql"
 }
 
+model beneficiarios {
+  id       Int        @id @default(autoincrement())
+  nombre   String?
+  entregas entregas[]
+}
+
 model categorias {
   id        Int        @id @default(autoincrement()) @db.TinyInt
   nombre    String?
@@ -22,6 +28,16 @@ model donaciones {
   producto    productos? @relation(fields: [producto_id], references: [id])
 }
 
+model entregas {
+  id              Int            @id @default(autoincrement())
+  beneficiario_id Int?
+  producto_id     Int?
+  cantidad        Int?
+  fecha           DateTime?      @default(now())
+  beneficiario    beneficiarios? @relation(fields: [beneficiario_id], references: [id])
+  producto        productos?     @relation(fields: [producto_id], references: [id])
+}
+
 model productos {
   id           Int         @id @default(autoincrement())
   nombre       String?
@@ -30,4 +46,5 @@ model productos {
   unit         String      @default("pz") @db.VarChar(20)
   categoria    categorias? @relation(fields: [categoria_id], references: [id])
   donaciones   donaciones[]
+  entregas     entregas[]
 }

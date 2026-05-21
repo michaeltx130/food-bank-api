@@ -12,12 +12,25 @@ CREATE TABLE donantes (
   telefono VARCHAR(20)
 );
 
+CREATE TABLE beneficiarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100)
+);
+
 CREATE TABLE productos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   categoria_id TINYINT,
   cantidad INT DEFAULT 0,
   unit VARCHAR(20) NOT NULL DEFAULT 'pz'
+);
+
+CREATE TABLE entregas (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  beneficiario_id INT,
+  producto_id INT,
+  cantidad INT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE movimientos (

@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS beneficiarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100)
+);
+
+CREATE TABLE IF NOT EXISTS entregas (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  beneficiario_id INT,
+  producto_id INT,
+  cantidad INT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

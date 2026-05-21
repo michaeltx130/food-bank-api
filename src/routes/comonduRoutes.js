@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { categorias, donantes, movimientos, productos } = require('../controllers/comonduController');
+const { categorias, donantes, beneficiarios, entregas, movimientos, productos } = require('../controllers/comonduController');
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -19,6 +19,18 @@ router.get('/donantes/:id', donantes.getById);
 router.post('/donantes', donantes.create);
 router.put('/donantes/:id', donantes.update);
 router.delete('/donantes/:id', donantes.delete);
+
+router.get('/beneficiarios', beneficiarios.getAll);
+router.get('/beneficiarios/:id', beneficiarios.getById);
+router.post('/beneficiarios', beneficiarios.create);
+router.put('/beneficiarios/:id', beneficiarios.update);
+router.delete('/beneficiarios/:id', beneficiarios.delete);
+
+router.get('/entregas', entregas.getAll);
+router.get('/entregas/:id', entregas.getById);
+router.post('/entregas', entregas.create);
+router.put('/entregas/:id', entregas.update);
+router.delete('/entregas/:id', entregas.delete);
 
 // ─────────────────────────────────────────
 //  MOVIMIENTOS
