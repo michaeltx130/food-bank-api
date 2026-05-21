@@ -16,7 +16,8 @@ CREATE TABLE productos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   categoria_id TINYINT,
-  cantidad INT DEFAULT 0
+  cantidad INT DEFAULT 0,
+  unit VARCHAR(20) NOT NULL DEFAULT 'pz'
 );
 
 CREATE TABLE movimientos (
@@ -72,6 +73,6 @@ CREATE TABLE sync_events_recibidos (
 
 
 INSERT INTO categorias (nombre) VALUES ('Granos'), ('Enlatados');
-INSERT INTO productos (nombre, categoria_id, cantidad) VALUES ('Arroz',1,100);
+INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES ('Arroz',1,100,'pz');
 
 SELECT * FROM productos;

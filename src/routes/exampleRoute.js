@@ -14,6 +14,7 @@ const {
   kafkaDisponible,
   publicarEventosPendientes
 } = require('../events/kafka/kafka.service');
+const { unitParaCrear } = require('../utils/productUnit');
 
 const normalizarNombreProducto = (nombre) => String(nombre).toLowerCase().replace(/\s+/g, '');
 
@@ -105,12 +106,17 @@ router.post('/agregar_productos', async (req, res) => {
   let conn;
 
   try {
-    const { nombre, categoria_id, cantidad } = req.body;
+    const { nombre, categoria_id, cantidad, unit } = req.body;
     const categoriaId = Number(categoria_id);
     const cantidadNumero = Number(cantidad);
+    const unitValidada = unitParaCrear(unit);
 
     if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
       return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
+    }
+
+    if (!unitValidada.valido) {
+      return res.status(400).json({ error: unitValidada.error });
     }
 
     conn = await db.getConnection();
@@ -132,6 +138,7 @@ router.post('/agregar_productos', async (req, res) => {
           id: productoExistente.id,
           nombre: productoExistente.nombre,
           categoria_id: productoExistente.categoria_id,
+          unit: productoExistente.unit,
           cantidad_anterior: productoExistente.cantidad,
           cantidad_sumada: cantidadNumero,
           cantidad_actual: productoExistente.cantidad + cantidadNumero
@@ -140,8 +147,8 @@ router.post('/agregar_productos', async (req, res) => {
     }
 
     const [result] = await conn.query(
-      'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
-      [nombre, categoriaId, cantidadNumero]
+      'INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)',
+      [nombre, categoriaId, cantidadNumero, unitValidada.valor]
     );
     await conn.commit();
 
@@ -152,6 +159,7 @@ router.post('/agregar_productos', async (req, res) => {
         id: result.insertId,
         nombre,
         categoria_id: categoriaId,
+        unit: unitValidada.valor,
         cantidad: cantidadNumero
       }
     });
@@ -172,12 +180,17 @@ router.post('/recibir_productos', async (req, res) => {
   let conn;
 
   try {
-    const { nombre, categoria_id, cantidad } = req.body;
+    const { nombre, categoria_id, cantidad, unit } = req.body;
     const categoriaId = Number(categoria_id);
     const cantidadNumero = Number(cantidad);
+    const unitValidada = unitParaCrear(unit);
 
     if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
       return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
+    }
+
+    if (!unitValidada.valido) {
+      return res.status(400).json({ error: unitValidada.error });
     }
 
     conn = await db.getConnection();
@@ -192,16 +205,18 @@ router.post('/recibir_productos', async (req, res) => {
       return res.json({
         mensaje: 'Cantidad actualizada',
         producto: productoExistente.nombre,
+        unit: productoExistente.unit,
         cantidad_sumada: cantidadNumero,
         transaccion: { estado: 'commit', operacion: 'sumar_en_destino' }
       });
     } else {
-      await conn.query('INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)', [nombre, categoriaId, cantidadNumero]);
+      await conn.query('INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)', [nombre, categoriaId, cantidadNumero, unitValidada.valor]);
       await conn.commit();
 
       return res.json({
         mensaje: 'Producto creado',
         producto: nombre,
+        unit: unitValidada.valor,
         cantidad: cantidadNumero,
         transaccion: { estado: 'commit', operacion: 'crear_en_destino' }
       });
@@ -299,6 +314,7 @@ router.post('/red/productos/enviar', async (req, res) => {
       transferencia_id: transferenciaId,
       producto_id: productoId,
       producto_nombre: producto.nombre,
+      producto_unit: producto.unit,
       categoria_id: producto.categoria_id,
       cantidad: cantidadNumero,
       origen: BANCO_ID,
@@ -322,6 +338,7 @@ router.post('/red/productos/enviar', async (req, res) => {
       transferencia_id: transferenciaId,
       producto_id: productoId,
       producto_nombre: producto.nombre,
+      producto_unit: producto.unit,
       categoria_id: producto.categoria_id,
       cantidad: cantidadNumero,
       origen: BANCO_ID,
@@ -360,6 +377,7 @@ router.post('/red/productos/enviar', async (req, res) => {
       transferencia_id: transferenciaId,
       evento_id: eventoId,
       producto: producto.nombre,
+      unit: producto.unit,
       cantidad_transferida: cantidadNumero,
       transaccion: {
         estado: 'commit',
@@ -404,7 +422,8 @@ router.post('/red/productos/enviar', async (req, res) => {
 
 router.post('/sync/push', async (req, res) => {
   try {
-    const limite = Math.min(Number(req.body.limit || req.query.limit || 20), 100);
+    const limitBody = req.body?.limit;
+    const limite = Math.min(Number(limitBody || req.query.limit || 20), 100);
 
     await asegurarInfraestructuraSync();
 

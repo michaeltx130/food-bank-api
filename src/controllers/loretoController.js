@@ -1,4 +1,5 @@
 const { loreto } = require('../config/prisma');
+const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -91,9 +92,12 @@ const productos = {
 
   create: async (req, res) => {
     try {
-      const { nombre, categoria_id, cantidad } = req.body;
+      const { nombre, categoria_id, cantidad, unit } = req.body;
+      const unitValidada = unitParaCrear(unit);
+      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+
       const data = await loreto.productos.create({
-        data: { nombre, categoria_id, cantidad }
+        data: { nombre, categoria_id, cantidad, unit: unitValidada.valor }
       });
       res.status(201).json(data);
     } catch (error) {
@@ -103,10 +107,15 @@ const productos = {
 
   update: async (req, res) => {
     try {
-      const { nombre, categoria_id, cantidad } = req.body;
+      const { nombre, categoria_id, cantidad, unit } = req.body;
+      const unitValidada = unitParaActualizar(unit);
+      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+      const productoData = { nombre, categoria_id, cantidad };
+      if (unitValidada.valor !== undefined) productoData.unit = unitValidada.valor;
+
       const data = await loreto.productos.update({
         where: { id: Number(req.params.id) },
-        data: { nombre, categoria_id, cantidad }
+        data: productoData
       });
       res.json(data);
     } catch (error) {

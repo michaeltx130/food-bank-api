@@ -10,7 +10,8 @@ CREATE TABLE productos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   categoria_id TINYINT,
-  cantidad INT
+  cantidad INT,
+  unit VARCHAR(20) NOT NULL DEFAULT 'pz'
 );
 
 CREATE TABLE transferencias (
@@ -58,4 +59,4 @@ CREATE TABLE sync_events_recibidos (
 
 
 INSERT INTO categorias (nombre) VALUES ('Bebidas');
-INSERT INTO productos (nombre, categoria_id, cantidad) VALUES ('Coca cola',1,20000);
+INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES ('Coca cola',1,20000,'pz');

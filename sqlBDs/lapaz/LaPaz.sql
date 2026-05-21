@@ -10,7 +10,8 @@ CREATE TABLE productos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   categoria_id TINYINT,
-  cantidad INT
+  cantidad INT,
+  unit VARCHAR(20) NOT NULL DEFAULT 'pz'
 );
 
 CREATE TABLE beneficiarios (
@@ -70,6 +71,6 @@ CREATE TABLE sync_events_recibidos (
 );
 
 INSERT INTO categorias (nombre) VALUES ('Lácteos');
-INSERT INTO productos (nombre, categoria_id, cantidad) VALUES ('Leche',1,50);
+INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES ('Leche',1,50,'pz');
 
 SELECT * FROM productos;

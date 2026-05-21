@@ -9,6 +9,7 @@ const {
   registrarEventoSync
 } = require('../../services/sync.service');
 const { enviarNotificacion } = require('../rabbitmq/notification.service');
+const { unitParaCrear } = require('../../utils/productUnit');
 
 let Kafka;
 
@@ -202,9 +203,14 @@ const manejarTransferRequested = async (message) => {
         [payload.cantidad, productoExistente.id]
       );
     } else {
+      const unitValidada = unitParaCrear(payload.producto_unit);
+      if (!unitValidada.valido) {
+        throw new Error(unitValidada.error);
+      }
+
       await conn.query(
-        'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
-        [payload.producto_nombre, payload.categoria_id, payload.cantidad]
+        'INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)',
+        [payload.producto_nombre, payload.categoria_id, payload.cantidad, unitValidada.valor]
       );
     }
 
