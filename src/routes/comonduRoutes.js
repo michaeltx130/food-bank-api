@@ -14,11 +14,11 @@ router.delete('/categorias/:id', categorias.delete);
 // ─────────────────────────────────────────
 //  DONANTES
 // ─────────────────────────────────────────
-router.get('/donantes', donantes.getAll);
-router.get('/donantes/:id', donantes.getById);
-router.post('/donantes', donantes.create);
-router.put('/donantes/:id', donantes.update);
-router.delete('/donantes/:id', donantes.delete);
+router.get('/donaciones', donaciones.getAll);
+router.get('/donaciones/:id', donaciones.getById);
+router.post('/donaciones', donaciones.create);
+router.put('/donaciones/:id', donaciones.update);
+router.delete('/donaciones/:id', donaciones.delete);
 
 router.get('/familias', familias.getAll);
 router.get('/familias/:id', familias.getById);

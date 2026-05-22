@@ -44,4 +44,10 @@ router.post('/productos', productos.create);
 router.put('/productos/:id', productos.update);
 router.delete('/productos/:id', productos.delete);
 
+router.get('/donaciones', donaciones.getAll);
+router.get('/donaciones/:id', donaciones.getById);
+router.post('/donaciones', donaciones.create);
+router.put('/donaciones/:id', donaciones.update);
+router.delete('/donaciones/:id', donaciones.delete);
+
 module.exports = router;
