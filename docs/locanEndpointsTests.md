@@ -365,7 +365,7 @@ Params:
 Valores permitidos para `nombre`:
 
 ```text
-productos, categorias, movimientos, donaciones, entregas, transferencias, donantes, beneficiarios, sync_events, sync_events_recibidos
+productos, categorias, movimientos, donaciones, entregas, transferencias, donantes, beneficiarios, familias, sync_events, sync_events_recibidos
 ```
 
 Query params: ninguno.
@@ -1425,6 +1425,244 @@ Response:
 ```json
 {
   "message": "Beneficiario eliminado"
+}
+```
+
+Codigos posibles: `200`, `500`.
+
+## Familias
+
+Disponibilidad:
+
+```http
+http://localhost:3001/api/comondu/familias
+http://localhost:3002/api/lapaz/familias
+http://localhost:3003/api/loreto/familias
+http://localhost:3004/api/mulege/familias
+```
+
+### GET /api/{nodo}/familias
+
+Descripcion:
+Lista familias registradas del nodo.
+
+Headers:
+
+```http
+No requiere headers.
+```
+
+Params: ninguno.
+
+Query params: ninguno.
+
+Body RAW: no aplica.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Familia Lopez",
+    "telefono": "5551234567",
+    "cantidad_miembros": 4,
+    "direccion": "Col. Centro"
+  }
+]
+```
+
+Codigos posibles: `200`, `500`.
+
+### GET /api/{nodo}/familias/:id
+
+URL completa:
+
+```http
+GET http://localhost:3001/api/comondu/familias/1
+GET http://localhost:3002/api/lapaz/familias/1
+GET http://localhost:3003/api/loreto/familias/1
+GET http://localhost:3004/api/mulege/familias/1
+```
+
+Descripcion:
+Obtiene una familia por `id`.
+
+Headers:
+
+```http
+No requiere headers.
+```
+
+Params:
+
+```json
+{
+  "id": 1
+}
+```
+
+Query params: ninguno.
+
+Body RAW: no aplica.
+
+Response:
+
+```json
+{
+  "id": 1,
+  "nombre": "Familia Lopez",
+  "telefono": "5551234567",
+  "cantidad_miembros": 4,
+  "direccion": "Col. Centro"
+}
+```
+
+Codigos posibles: `200`, `404`, `500`.
+
+### POST /api/{nodo}/familias
+
+URL completa:
+
+```http
+POST http://localhost:3001/api/comondu/familias
+POST http://localhost:3002/api/lapaz/familias
+POST http://localhost:3003/api/loreto/familias
+POST http://localhost:3004/api/mulege/familias
+```
+
+Descripcion:
+Registra una familia nueva.
+
+Headers:
+
+```http
+Content-Type: application/json
+```
+
+Params: ninguno.
+
+Query params: ninguno.
+
+Body RAW:
+
+```json
+{
+  "nombre": "Familia Lopez",
+  "telefono": "5551234567",
+  "cantidad_miembros": 4,
+  "direccion": "Col. Centro"
+}
+```
+
+Tambien acepta `cantidadMiembros`, `miembros` y `ubicacion` como aliases de entrada.
+
+Response:
+
+```json
+{
+  "id": 1,
+  "nombre": "Familia Lopez",
+  "telefono": "5551234567",
+  "cantidad_miembros": 4,
+  "direccion": "Col. Centro"
+}
+```
+
+Codigos posibles: `201`, `400`, `500`.
+
+### PUT /api/{nodo}/familias/:id
+
+URL completa:
+
+```http
+PUT http://localhost:3001/api/comondu/familias/1
+PUT http://localhost:3002/api/lapaz/familias/1
+PUT http://localhost:3003/api/loreto/familias/1
+PUT http://localhost:3004/api/mulege/familias/1
+```
+
+Descripcion:
+Actualiza una familia.
+
+Headers:
+
+```http
+Content-Type: application/json
+```
+
+Params:
+
+```json
+{
+  "id": 1
+}
+```
+
+Query params: ninguno.
+
+Body RAW:
+
+```json
+{
+  "nombre": "Familia Lopez Garcia",
+  "telefono": "5557654321",
+  "cantidad_miembros": 5,
+  "direccion": "Col. Norte"
+}
+```
+
+Response:
+
+```json
+{
+  "id": 1,
+  "nombre": "Familia Lopez Garcia",
+  "telefono": "5557654321",
+  "cantidad_miembros": 5,
+  "direccion": "Col. Norte"
+}
+```
+
+Codigos posibles: `200`, `400`, `500`.
+
+### DELETE /api/{nodo}/familias/:id
+
+URL completa:
+
+```http
+DELETE http://localhost:3001/api/comondu/familias/1
+DELETE http://localhost:3002/api/lapaz/familias/1
+DELETE http://localhost:3003/api/loreto/familias/1
+DELETE http://localhost:3004/api/mulege/familias/1
+```
+
+Descripcion:
+Elimina una familia.
+
+Headers:
+
+```http
+No requiere headers.
+```
+
+Params:
+
+```json
+{
+  "id": 1
+}
+```
+
+Query params: ninguno.
+
+Body RAW: no aplica.
+
+Response:
+
+```json
+{
+  "message": "Familia eliminada"
 }
 ```
 
@@ -2571,4 +2809,3 @@ Response:
 ```
 
 Codigos posibles: `200`, `500`.
-

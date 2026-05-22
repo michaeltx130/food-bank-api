@@ -1,5 +1,12 @@
 const { loreto } = require('../config/prisma');
 const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
+const {
+  actualizarFamiliaConBeneficiario,
+  beneficiarioInclude,
+  crearFamiliaConBeneficiario,
+  familiaInclude,
+  normalizarFamiliaPayload
+} = require('../utils/familiaPayload');
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -69,7 +76,7 @@ const beneficiarios = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.beneficiarios.findMany({
-        include: { entregas: true }
+        include: beneficiarioInclude
       });
       res.json(data);
     } catch (error) {
@@ -81,7 +88,7 @@ const beneficiarios = {
     try {
       const data = await loreto.beneficiarios.findUnique({
         where: { id: Number(req.params.id) },
-        include: { entregas: true }
+        include: beneficiarioInclude
       });
       if (!data) return res.status(404).json({ error: 'Beneficiario no encontrado' });
       res.json(data);
@@ -119,6 +126,63 @@ const beneficiarios = {
       res.json({ message: 'Beneficiario eliminado' });
     } catch (error) {
       res.status(500).json({ error: 'Error al eliminar beneficiario' });
+    }
+  }
+};
+
+const familias = {
+  getAll: async (req, res) => {
+    try {
+      const data = await loreto.familias.findMany({ include: familiaInclude });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener familias' });
+    }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const data = await loreto.familias.findUnique({
+        where: { id: Number(req.params.id) },
+        include: familiaInclude
+      });
+      if (!data) return res.status(404).json({ error: 'Familia no encontrada' });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener familia' });
+    }
+  },
+
+  create: async (req, res) => {
+    try {
+      const familia = normalizarFamiliaPayload(req.body);
+      if (!familia.valido) return res.status(400).json({ error: familia.error });
+
+      const data = await crearFamiliaConBeneficiario(loreto, familia);
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear familia' });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const familia = normalizarFamiliaPayload(req.body);
+      if (!familia.valido) return res.status(400).json({ error: familia.error });
+
+      const data = await actualizarFamiliaConBeneficiario(loreto, Number(req.params.id), familia);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar familia' });
+    }
+  },
+
+  delete: async (req, res) => {
+    try {
+      await loreto.familias.delete({ where: { id: Number(req.params.id) } });
+      res.json({ message: 'Familia eliminada' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar familia' });
     }
   }
 };
@@ -314,4 +378,4 @@ const transferencias = {
   }
 };
 
-module.exports = { categorias, beneficiarios, entregas, productos, transferencias };
+module.exports = { categorias, beneficiarios, familias, entregas, productos, transferencias };

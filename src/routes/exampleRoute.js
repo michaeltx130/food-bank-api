@@ -85,6 +85,7 @@ router.get('/tabla/:nombre', async (req, res) => {
     'transferencias',
     'donantes',
     'beneficiarios',
+    'familias',
     'sync_events',
     'sync_events_recibidos'
   ];

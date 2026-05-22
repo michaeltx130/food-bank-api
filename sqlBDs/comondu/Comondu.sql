@@ -17,6 +17,17 @@ CREATE TABLE beneficiarios (
   nombre VARCHAR(100)
 );
 
+CREATE TABLE familias (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  beneficiario_id INT NOT NULL UNIQUE,
+  nombre VARCHAR(100),
+  telefono VARCHAR(20),
+  cantidad_miembros INT,
+  direccion VARCHAR(255),
+  CONSTRAINT familias_beneficiario_id_fk
+    FOREIGN KEY (beneficiario_id) REFERENCES beneficiarios(id)
+);
+
 CREATE TABLE productos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),

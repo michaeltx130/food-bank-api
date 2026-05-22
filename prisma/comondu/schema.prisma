@@ -11,6 +11,7 @@ model beneficiarios {
   id       Int        @id @default(autoincrement())
   nombre   String?
   entregas entregas[]
+  familia  familias?
 }
 
 model categorias {
@@ -23,6 +24,16 @@ model donantes {
   id       Int     @id @default(autoincrement())
   nombre   String?
   telefono String?
+}
+
+model familias {
+  id                Int           @id @default(autoincrement())
+  beneficiario_id   Int           @unique
+  nombre            String?
+  telefono          String?
+  cantidad_miembros Int?
+  direccion         String?
+  beneficiario      beneficiarios @relation(fields: [beneficiario_id], references: [id])
 }
 
 model entregas {

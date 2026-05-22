@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { categorias, beneficiarios, entregas, productos, transferencias } = require('../controllers/loretoController');
+const { categorias, beneficiarios, familias, entregas, productos, transferencias } = require('../controllers/loretoController');
 
 router.get('/categorias', categorias.getAll);
 router.get('/categorias/:id', categorias.getById);
@@ -13,6 +13,12 @@ router.get('/beneficiarios/:id', beneficiarios.getById);
 router.post('/beneficiarios', beneficiarios.create);
 router.put('/beneficiarios/:id', beneficiarios.update);
 router.delete('/beneficiarios/:id', beneficiarios.delete);
+
+router.get('/familias', familias.getAll);
+router.get('/familias/:id', familias.getById);
+router.post('/familias', familias.create);
+router.put('/familias/:id', familias.update);
+router.delete('/familias/:id', familias.delete);
 
 router.get('/entregas', entregas.getAll);
 router.get('/entregas/:id', entregas.getById);

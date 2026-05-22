@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { categorias, beneficiarios, entregas, productos } = require('../controllers/lapazController');
+const { categorias, beneficiarios, familias, entregas, productos } = require('../controllers/lapazController');
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -19,6 +19,12 @@ router.get('/beneficiarios/:id', beneficiarios.getById);
 router.post('/beneficiarios', beneficiarios.create);
 router.put('/beneficiarios/:id', beneficiarios.update);
 router.delete('/beneficiarios/:id', beneficiarios.delete);
+
+router.get('/familias', familias.getAll);
+router.get('/familias/:id', familias.getById);
+router.post('/familias', familias.create);
+router.put('/familias/:id', familias.update);
+router.delete('/familias/:id', familias.delete);
 
 // ─────────────────────────────────────────
 //  ENTREGAS
