@@ -36,6 +36,15 @@ model familias {
   beneficiario      beneficiarios @relation(fields: [beneficiario_id], references: [id])
 }
 
+model donaciones {
+  id          Int        @id @default(autoincrement())
+  donante     String?
+  producto_id Int?
+  cantidad    Int?
+  fecha       DateTime?  @default(now())
+  producto    productos? @relation(fields: [producto_id], references: [id])
+}
+
 model entregas {
   id              Int            @id @default(autoincrement())
   beneficiario_id Int?
@@ -62,6 +71,25 @@ model productos {
   cantidad     Int?
   unit         String        @default("pz") @db.VarChar(20)
   categoria    categorias?   @relation(fields: [categoria_id], references: [id])
+  donaciones   donaciones[]
   entregas     entregas[]
   movimientos  movimientos[]
+  transferencias transferencias[]
+}
+
+model transferencias {
+  id              Int        @id @default(autoincrement())
+  transferencia_id String?   @unique @db.VarChar(80)
+  producto_id      Int?
+  producto_nombre  String?   @db.VarChar(100)
+  categoria_id     Int?
+  cantidad         Int       @default(0)
+  origen           String?   @db.VarChar(100)
+  destino          String?   @db.VarChar(100)
+  estado           String    @default("PENDIENTE") @db.VarChar(30)
+  evento_id        String?   @db.VarChar(80)
+  error            String?   @db.Text
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @default(now()) @updatedAt
+  producto         productos? @relation(fields: [producto_id], references: [id])
 }

@@ -20,6 +20,12 @@ model categorias {
   productos productos[]
 }
 
+model donantes {
+  id       Int     @id @default(autoincrement())
+  nombre   String?
+  telefono String?
+}
+
 model familias {
   id                Int           @id @default(autoincrement())
   beneficiario_id   Int           @unique
@@ -49,13 +55,41 @@ model entregas {
   producto        productos?     @relation(fields: [producto_id], references: [id])
 }
 
+model movimientos {
+  id          Int        @id @default(autoincrement())
+  producto_id Int?
+  tipo        String?
+  cantidad    Int?
+  fecha       DateTime?  @default(now())
+  producto    productos? @relation(fields: [producto_id], references: [id])
+}
+
 model productos {
-  id           Int         @id @default(autoincrement())
-  nombre       String?
-  categoria_id Int?        @db.TinyInt
-  cantidad     Int?
-  unit         String      @default("pz") @db.VarChar(20)
-  categoria    categorias? @relation(fields: [categoria_id], references: [id])
-  donaciones   donaciones[]
-  entregas     entregas[]
+  id              Int              @id @default(autoincrement())
+  nombre          String?
+  categoria_id    Int?             @db.TinyInt
+  cantidad        Int?
+  unit            String           @default("pz") @db.VarChar(20)
+  categoria       categorias?      @relation(fields: [categoria_id], references: [id])
+  donaciones      donaciones[]
+  entregas        entregas[]
+  movimientos     movimientos[]
+  transferencias  transferencias[]
+}
+
+model transferencias {
+  id              Int        @id @default(autoincrement())
+  transferencia_id String?   @unique @db.VarChar(80)
+  producto_id      Int?
+  producto_nombre  String?   @db.VarChar(100)
+  categoria_id     Int?
+  cantidad         Int       @default(0)
+  origen           String?   @db.VarChar(100)
+  destino          String?   @db.VarChar(100)
+  estado           String    @default("PENDIENTE") @db.VarChar(30)
+  evento_id        String?   @db.VarChar(80)
+  error            String?   @db.Text
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @default(now()) @updatedAt
+  producto         productos? @relation(fields: [producto_id], references: [id])
 }

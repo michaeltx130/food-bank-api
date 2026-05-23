@@ -1,10 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { categorias, beneficiarios, familias, entregas, donaciones, productos } = require('../controllers/mulegeController');
+const {
+  categorias,
+  beneficiarios,
+  familias,
+  entregas,
+  donaciones,
+  productos,
+  donantes,
+  movimientos,
+  transferencias
+} = require('../controllers/mulegeController');
 
-// ─────────────────────────────────────────
-//  CATEGORIAS
-// ─────────────────────────────────────────
 router.get('/categorias', categorias.getAll);
 router.get('/categorias/:id', categorias.getById);
 router.post('/categorias', categorias.create);
@@ -29,18 +36,30 @@ router.post('/entregas', entregas.create);
 router.put('/entregas/:id', entregas.update);
 router.delete('/entregas/:id', entregas.delete);
 
-// ─────────────────────────────────────────
-//  DONACIONES
-// ─────────────────────────────────────────
 router.get('/donaciones', donaciones.getAll);
 router.get('/donaciones/:id', donaciones.getById);
 router.post('/donaciones', donaciones.create);
 router.put('/donaciones/:id', donaciones.update);
 router.delete('/donaciones/:id', donaciones.delete);
 
-// ─────────────────────────────────────────
-//  PRODUCTOS
-// ─────────────────────────────────────────
+router.get('/donantes', donantes.getAll);
+router.get('/donantes/:id', donantes.getById);
+router.post('/donantes', donantes.create);
+router.put('/donantes/:id', donantes.update);
+router.delete('/donantes/:id', donantes.delete);
+
+router.get('/movimientos', movimientos.getAll);
+router.get('/movimientos/:id', movimientos.getById);
+router.post('/movimientos', movimientos.create);
+router.put('/movimientos/:id', movimientos.update);
+router.delete('/movimientos/:id', movimientos.delete);
+
+router.get('/transferencias', transferencias.getAll);
+router.get('/transferencias/:id', transferencias.getById);
+router.post('/transferencias', transferencias.create);
+router.put('/transferencias/:id', transferencias.update);
+router.delete('/transferencias/:id', transferencias.delete);
+
 router.get('/productos', productos.getAll);
 router.get('/productos/:id', productos.getById);
 router.post('/productos', productos.create);

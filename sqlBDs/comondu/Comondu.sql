@@ -44,6 +44,14 @@ CREATE TABLE entregas (
   fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE donaciones (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  donante VARCHAR(100),
+  producto_id INT,
+  cantidad INT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE movimientos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   producto_id INT,

@@ -1,6 +1,11 @@
 const { comondu } = require('../config/prisma');
 const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
 const {
+  crearCrud,
+  datosDonacion,
+  datosTransferencia
+} = require('../utils/crudController');
+const {
   actualizarFamiliaConBeneficiario,
   beneficiarioInclude,
   crearFamiliaConBeneficiario,
@@ -372,7 +377,7 @@ const productos = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.productos.findMany({
-        include: { categoria: true, entregas: true, movimientos: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       res.json(data);
     } catch (error) {
@@ -384,7 +389,7 @@ const productos = {
     try {
       const data = await comondu.productos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { categoria: true, entregas: true, movimientos: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
       res.json(data);
@@ -436,4 +441,26 @@ const productos = {
   }
 };
 
-module.exports = { categorias, donantes, familias, beneficiarios, entregas, movimientos, productos };
+const donaciones = crearCrud(comondu, 'donaciones', {
+  label: 'donacion',
+  include: { producto: true },
+  buildData: datosDonacion
+});
+
+const transferencias = crearCrud(comondu, 'transferencias', {
+  label: 'transferencia',
+  include: { producto: true },
+  buildData: datosTransferencia
+});
+
+module.exports = {
+  categorias,
+  donantes,
+  familias,
+  beneficiarios,
+  entregas,
+  movimientos,
+  productos,
+  donaciones,
+  transferencias
+};

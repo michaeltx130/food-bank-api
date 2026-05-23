@@ -6,6 +6,12 @@ CREATE TABLE categorias (
   nombre VARCHAR(100)
 );
 
+CREATE TABLE donantes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100),
+  telefono VARCHAR(20)
+);
+
 CREATE TABLE beneficiarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100)
@@ -42,6 +48,14 @@ CREATE TABLE donaciones (
   id INT AUTO_INCREMENT PRIMARY KEY,
   donante VARCHAR(100),
   producto_id INT,
+  cantidad INT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE movimientos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  producto_id INT,
+  tipo ENUM('entrada','salida','transferencia'),
   cantidad INT,
   fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

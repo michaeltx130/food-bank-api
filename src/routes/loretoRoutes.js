@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { categorias, beneficiarios, familias, entregas, productos, transferencias } = require('../controllers/loretoController');
+const {
+  categorias,
+  beneficiarios,
+  familias,
+  entregas,
+  productos,
+  transferencias,
+  donaciones,
+  donantes,
+  movimientos
+} = require('../controllers/loretoController');
 
 router.get('/categorias', categorias.getAll);
 router.get('/categorias/:id', categorias.getById);
@@ -43,5 +53,17 @@ router.get('/donaciones/:id', donaciones.getById);
 router.post('/donaciones', donaciones.create);
 router.put('/donaciones/:id', donaciones.update);
 router.delete('/donaciones/:id', donaciones.delete);
+
+router.get('/donantes', donantes.getAll);
+router.get('/donantes/:id', donantes.getById);
+router.post('/donantes', donantes.create);
+router.put('/donantes/:id', donantes.update);
+router.delete('/donantes/:id', donantes.delete);
+
+router.get('/movimientos', movimientos.getAll);
+router.get('/movimientos/:id', movimientos.getById);
+router.post('/movimientos', movimientos.create);
+router.put('/movimientos/:id', movimientos.update);
+router.delete('/movimientos/:id', movimientos.delete);
 
 module.exports = router;

@@ -1,6 +1,12 @@
 const { loreto } = require('../config/prisma');
 const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
 const {
+  crearCrud,
+  datosDonacion,
+  datosDonante,
+  datosMovimiento
+} = require('../utils/crudController');
+const {
   actualizarFamiliaConBeneficiario,
   beneficiarioInclude,
   crearFamiliaConBeneficiario,
@@ -251,7 +257,7 @@ const productos = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.productos.findMany({
-        include: { categoria: true, entregas: true, transferencias: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       res.json(data);
     } catch (error) {
@@ -263,7 +269,7 @@ const productos = {
     try {
       const data = await loreto.productos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { categoria: true, entregas: true, transferencias: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
       res.json(data);
@@ -378,4 +384,31 @@ const transferencias = {
   }
 };
 
-module.exports = { categorias, beneficiarios, familias, entregas, productos, transferencias };
+const donantes = crearCrud(loreto, 'donantes', {
+  label: 'donante',
+  buildData: datosDonante
+});
+
+const donaciones = crearCrud(loreto, 'donaciones', {
+  label: 'donacion',
+  include: { producto: true },
+  buildData: datosDonacion
+});
+
+const movimientos = crearCrud(loreto, 'movimientos', {
+  label: 'movimiento',
+  include: { producto: true },
+  buildData: datosMovimiento
+});
+
+module.exports = {
+  categorias,
+  beneficiarios,
+  familias,
+  entregas,
+  productos,
+  transferencias,
+  donaciones,
+  donantes,
+  movimientos
+};

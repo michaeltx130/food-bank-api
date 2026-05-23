@@ -1,6 +1,13 @@
 const { lapaz } = require('../config/prisma');
 const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
 const {
+  crearCrud,
+  datosDonacion,
+  datosDonante,
+  datosMovimiento,
+  datosTransferencia
+} = require('../utils/crudController');
+const {
   actualizarFamiliaConBeneficiario,
   beneficiarioInclude,
   crearFamiliaConBeneficiario,
@@ -257,7 +264,7 @@ const productos = {
   getAll: async (req, res) => {
     try {
       const data = await lapaz.productos.findMany({
-        include: { categoria: true, entregas: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       res.json(data);
     } catch (error) {
@@ -269,7 +276,7 @@ const productos = {
     try {
       const data = await lapaz.productos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { categoria: true, entregas: true }
+        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
       });
       if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
       res.json(data);
@@ -321,4 +328,37 @@ const productos = {
   }
 };
 
-module.exports = { categorias, beneficiarios, familias, entregas, productos };
+const donantes = crearCrud(lapaz, 'donantes', {
+  label: 'donante',
+  buildData: datosDonante
+});
+
+const donaciones = crearCrud(lapaz, 'donaciones', {
+  label: 'donacion',
+  include: { producto: true },
+  buildData: datosDonacion
+});
+
+const movimientos = crearCrud(lapaz, 'movimientos', {
+  label: 'movimiento',
+  include: { producto: true },
+  buildData: datosMovimiento
+});
+
+const transferencias = crearCrud(lapaz, 'transferencias', {
+  label: 'transferencia',
+  include: { producto: true },
+  buildData: datosTransferencia
+});
+
+module.exports = {
+  categorias,
+  beneficiarios,
+  familias,
+  entregas,
+  productos,
+  donaciones,
+  donantes,
+  movimientos,
+  transferencias
+};
