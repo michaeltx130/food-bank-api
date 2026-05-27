@@ -2,41 +2,58 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: foodbank-zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_SERVERS: 100.72.90.81:2888:3888;100.104.46.91:2888:3888;100.101.236.118:2888:3888;100.80.52.8:2888:3888
+      ZOOKEEPER_QUORUM_LISTEN_ON_ALL_IPS: "true"
     ports:
       - "2181:2181"
       - "2888:2888"
       - "3888:3888"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: foodbank-kafka
+    restart: unless-stopped
     depends_on:
       - zookeeper
     ports:
       - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 3
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 100.72.90.81:2181,100.104.46.91:2181,100.101.236.118:2181,100.80.52.8:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://100.101.236.118:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://100.72.90.81:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 3
       KAFKA_MIN_INSYNC_REPLICAS: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
 
   rabbitmq:
     image: rabbitmq:3-management
     container_name: foodbank-rabbitmq
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  zookeeper-data:
+  zookeeper-log:
+  kafka-data:
+  rabbitmq-data:
