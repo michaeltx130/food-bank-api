@@ -7,7 +7,6 @@ yarn.lock
 .env.local
 .env.*.local
 nodes/*.env
-docker-compose.yml
 
 # IDE y editores
 .vscode/
