@@ -11,10 +11,10 @@ Cada maquina corre:
 
 | Persona | Banco | IP Tailscale | API | Compose | App |
 | --- | --- | --- | ---: | --- | --- |
-| Danna | Mulege | `100.72.90.81` | 3004 | `docker-compose.mulege.yml` | `npm run start:mulege` |
-| Michi | Comondu | `100.104.46.91` | 3001 | `docker-compose.comondu.yml` | `npm run start:comondu` |
+| Danna | Mulege | `100.83.23.115` | 3004 | `docker-compose.mulege.yml` | `npm run start:mulege` |
+| Michi | Comondu | `100.82.181.5` | 3001 | `docker-compose.comondu.yml` | `npm run start:comondu` |
 | Ale | Loreto | `100.101.236.118` | 3003 | `docker-compose.loreto.yml` | `npm run start:loreto` |
-| Javi | La Paz | `100.80.52.8` | 3002 | `docker-compose.lapaz.yml` | `npm run start:lapaz` |
+| Javi | La Paz | `100.114.40.70` | 3002 | `docker-compose.lapaz.yml` | `npm run start:lapaz` |
 
 ## En cada maquina
 
@@ -69,16 +69,16 @@ Permitir entrada por la red de Tailscale:
 Desde cualquier maquina:
 
 ```powershell
-Invoke-WebRequest http://100.104.46.91:3001/status
-Invoke-WebRequest http://100.80.52.8:3002/status
+Invoke-WebRequest http://100.82.181.5:3001/status
+Invoke-WebRequest http://100.114.40.70:3002/status
 Invoke-WebRequest http://100.101.236.118:3003/status
-Invoke-WebRequest http://100.72.90.81:3004/status
+Invoke-WebRequest http://100.83.23.115:3004/status
 ```
 
 Para revisar Kafka desde un contenedor:
 
 ```powershell
-docker exec foodbank-kafka kafka-broker-api-versions --bootstrap-server 100.72.90.81:9092,100.104.46.91:9092,100.101.236.118:9092,100.80.52.8:9092
+docker exec foodbank-kafka kafka-broker-api-versions --bootstrap-server 100.83.23.115:9092,100.82.181.5:9092,100.101.236.118:9092,100.114.40.70:9092
 ```
 
 ## Notas

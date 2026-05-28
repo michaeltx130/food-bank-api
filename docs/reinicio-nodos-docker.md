@@ -2,6 +2,19 @@
 
 Usen esto cuando Docker Desktop quede con contenedores viejos, volumenes de Kafka/Zookeeper anteriores, o cuando se haya borrado un `docker-compose.*.yml` y despues el nodo ya no levante bien.
 
+## Arquitectura que estamos usando
+
+Este proyecto esta configurado como cluster distribuido real:
+
+- Cada compu levanta su propio `zookeeper`, `kafka` y `rabbitmq` en Docker.
+- Cada API de Node.js corre en Windows con `npm run start:NODO`.
+- Node.js se conecta a Kafka usando los 4 brokers de Tailscale definidos en `KAFKA_BROKERS`.
+- Zookeeper y Kafka tambien se conectan entre nodos usando las IPs de Tailscale.
+
+No es la opcion de "Kafka local aislado". Si cada quien deja solo `localhost:9092`, las APIs pueden prender, pero las transferencias por Kafka entre nodos no quedan como cluster distribuido.
+
+Importante: para que Kafka/Zookeeper funcionen como cluster, tienen que estar arriba varios nodos a la vez. Con la configuracion actual, Zookeeper espera 4 servidores y normalmente necesita quorum, o sea al menos 3 nodos disponibles.
+
 ## 1. Revisar que hay vivo
 
 ```powershell
@@ -60,7 +73,7 @@ npm run start:mulege
 Status:
 
 ```text
-http://100.72.90.81:3004/status
+http://100.83.23.115:3004/status
 ```
 
 ### Michi / Comondu
@@ -73,7 +86,7 @@ npm run start:comondu
 Status:
 
 ```text
-http://100.104.46.91:3001/status
+http://100.82.181.5:3001/status
 ```
 
 ### Ale / Loreto
@@ -99,7 +112,7 @@ npm run start:lapaz
 Status:
 
 ```text
-http://100.80.52.8:3002/status
+http://100.114.40.70:3002/status
 ```
 
 ## 5. Verificar que si quedo
@@ -130,7 +143,31 @@ Invoke-WebRequest -UseBasicParsing http://100.101.236.118:3003/status
 
 Si responde con `"estado":"activo"`, el nodo ya esta arriba.
 
-## 6. Si el puerto de Node ya esta ocupado
+## 6. Verificar red por Tailscale
+
+Desde PowerShell, prueben si ven a los otros nodos:
+
+```powershell
+tailscale ping 100.83.23.115
+tailscale ping 100.82.181.5
+tailscale ping 100.101.236.118
+tailscale ping 100.114.40.70
+```
+
+Y prueben los puertos importantes:
+
+```powershell
+Test-NetConnection 100.83.23.115 -Port 9092
+Test-NetConnection 100.82.181.5 -Port 9092
+Test-NetConnection 100.101.236.118 -Port 9092
+Test-NetConnection 100.114.40.70 -Port 9092
+```
+
+Para Zookeeper, los puertos importantes son `2181`, `2888` y `3888`. Para la API de cada banco son `3001`, `3002`, `3003` y `3004`.
+
+Si Tailscale responde pero los puertos no, revisen Firewall de Windows y que Docker Desktop este publicando los puertos.
+
+## 7. Si el puerto de Node ya esta ocupado
 
 Revisen que proceso esta usando el puerto:
 
