@@ -37,6 +37,7 @@ let consumerRetryTimer;
 
 const KAFKA_CONSUMER_RETRY_MS = Number(process.env.KAFKA_CONSUMER_RETRY_MS || 5000);
 const KAFKA_CONSUMER_MAX_RETRY_MS = Number(process.env.KAFKA_CONSUMER_MAX_RETRY_MS || 30000);
+const KAFKA_FROM_BEGINNING = (process.env.KAFKA_FROM_BEGINNING || 'true') !== 'false';
 
 const kafkaDisponible = () => Boolean(Kafka);
 
@@ -267,6 +268,7 @@ const manejarTransferRequested = async (message) => {
     }
 
     console.error('Error al procesar transfer.requested:', error.message);
+    throw error;
   } finally {
     if (conn) conn.release();
   }
@@ -295,8 +297,8 @@ const conectarConsumidorKafka = async () => {
 
   try {
     await consumer.connect();
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: false });
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: false });
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: KAFKA_FROM_BEGINNING });
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: KAFKA_FROM_BEGINNING });
 
     await consumer.run({
       eachMessage: async ({ topic, message }) => {
