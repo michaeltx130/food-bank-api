@@ -8,88 +8,116 @@ datasource db {
 }
 
 model beneficiarios {
-  id       Int        @id @default(autoincrement())
-  nombre   String?
-  entregas entregas[]
-  familia  familias?
+  id      Int       @id @default(autoincrement())
+  nombre  String?   @db.VarChar(100)
+  familia familias?
 }
 
 model categorias {
-  id          Int           @id @default(autoincrement()) @db.TinyInt
-  nombre      String
-  productos   productos[]
+  id     Int    @id @default(autoincrement()) @db.UnsignedTinyInt
+  nombre String @db.VarChar(100)
 }
 
 model donantes {
   id       Int     @id @default(autoincrement())
-  nombre   String?
-  telefono String?
+  nombre   String? @db.VarChar(100)
+  telefono String? @db.VarChar(20)
 }
 
 model familias {
   id                Int           @id @default(autoincrement())
-  beneficiario_id   Int           @unique
-  nombre            String?
-  telefono          String?
+  nombre            String?       @db.VarChar(100)
+  telefono          String?       @db.VarChar(20)
   cantidad_miembros Int?
-  direccion         String?
-  beneficiario      beneficiarios @relation(fields: [beneficiario_id], references: [id])
+  direccion         String?       @db.VarChar(255)
+  beneficiario_id   Int           @unique(map: "familias_beneficiario_id_unique")
+  beneficiario      beneficiarios @relation(fields: [beneficiario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "familias_beneficiario_id_fk")
 }
 
 model donaciones {
-  id          Int        @id @default(autoincrement())
-  donante     String?
+  id          Int       @id @default(autoincrement())
+  donante     String?   @db.VarChar(100)
   producto_id Int?
   cantidad    Int?
-  fecha       DateTime?  @default(now())
-  producto    productos? @relation(fields: [producto_id], references: [id])
+  fecha       DateTime? @default(now()) @db.Timestamp(0)
 }
 
 model entregas {
-  id              Int            @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   beneficiario_id Int?
   producto_id     Int?
   cantidad        Int?
-  fecha           DateTime?      @default(now())
-  beneficiario    beneficiarios? @relation(fields: [beneficiario_id], references: [id])
-  producto        productos?     @relation(fields: [producto_id], references: [id])
+  fecha           DateTime? @default(now()) @db.Timestamp(0)
 }
 
 model movimientos {
-  id          Int        @id @default(autoincrement())
+  id          Int               @id @default(autoincrement())
   producto_id Int?
-  tipo        String?
+  tipo        movimientos_tipo?
   cantidad    Int?
-  fecha       DateTime?  @default(now())
-  producto    productos? @relation(fields: [producto_id], references: [id])
+  fecha       DateTime?         @default(now()) @db.Timestamp(0)
 }
 
 model productos {
-  id           Int           @id @default(autoincrement())
-  nombre       String?
-  categoria_id Int?          @db.TinyInt
-  cantidad     Int?
-  unit         String        @default("pz") @db.VarChar(20)
-  categoria    categorias?   @relation(fields: [categoria_id], references: [id])
-  donaciones   donaciones[]
-  entregas     entregas[]
-  movimientos  movimientos[]
-  transferencias transferencias[]
+  id           Int     @id @default(autoincrement())
+  nombre       String? @db.VarChar(100)
+  categoria_id Int?    @db.TinyInt
+  cantidad     Int?    @default(0)
+  unit         String  @default("pz") @db.VarChar(20)
 }
 
 model transferencias {
-  id              Int        @id @default(autoincrement())
-  transferencia_id String?   @unique @db.VarChar(80)
+  id               Int                       @id @default(autoincrement())
+  transferencia_id String?                   @unique(map: "uq_transferencias_transferencia_id") @db.VarChar(80)
   producto_id      Int?
-  producto_nombre  String?   @db.VarChar(100)
+  producto_nombre  String?                   @db.VarChar(100)
   categoria_id     Int?
-  cantidad         Int       @default(0)
-  origen           String?   @db.VarChar(100)
-  destino          String?   @db.VarChar(100)
-  estado           String    @default("PENDIENTE") @db.VarChar(30)
-  evento_id        String?   @db.VarChar(80)
-  error            String?   @db.Text
-  created_at       DateTime? @default(now())
-  updated_at       DateTime? @default(now()) @updatedAt
-  producto         productos? @relation(fields: [producto_id], references: [id])
+  cantidad         Int                       @default(0)
+  origen           String?                   @db.VarChar(100)
+  destino          String?                   @db.VarChar(100)
+  estado           String                    @default("PENDIENTE") @db.VarChar(30)
+  evento_id        String?                   @db.VarChar(80)
+  error            String?                   @db.Text
+  created_at       DateTime?                 @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?                 @default(now()) @updatedAt @db.Timestamp(0)
+  aprobacion       transferencias_aprobacion @default(en_espera)
+}
+
+model sync_events {
+  id           Int       @id @default(autoincrement())
+  evento_id    String    @unique(map: "uq_sync_events_evento_id") @db.VarChar(80)
+  topic        String?   @db.VarChar(100)
+  tipo         String    @db.VarChar(60)
+  origen       String    @db.VarChar(100)
+  destino      String?   @db.VarChar(100)
+  payload      String    @db.LongText
+  estado       String    @default("pendiente") @db.VarChar(30)
+  intentos     Int       @default(0)
+  ultimo_error String?   @db.Text
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model sync_events_recibidos {
+  id          Int       @id @default(autoincrement())
+  evento_id   String    @unique(map: "uq_sync_events_recibidos_evento_id") @db.VarChar(80)
+  tipo        String    @db.VarChar(60)
+  origen      String    @db.VarChar(100)
+  payload     String    @db.LongText
+  estado      String    @default("recibido") @db.VarChar(30)
+  error       String?   @db.Text
+  received_at DateTime? @default(now()) @db.Timestamp(0)
+  applied_at  DateTime? @db.Timestamp(0)
+}
+
+enum movimientos_tipo {
+  entrada
+  salida
+  transferencia
+}
+
+enum transferencias_aprobacion {
+  en_espera
+  aceptado
+  denegado
 }

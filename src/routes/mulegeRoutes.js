@@ -60,6 +60,10 @@ router.post('/transferencias', transferencias.create);
 router.put('/transferencias/:id', transferencias.update);
 router.delete('/transferencias/:id', transferencias.delete);
 
+router.get('/transferencias/pendientes', transferencias.getPendientes);
+router.post('/transferencias/:id/aprobar', transferencias.aprobar);
+router.post('/transferencias/:id/rechazar', transferencias.rechazar);
+
 router.get('/productos', productos.getAll);
 router.get('/productos/:id', productos.getById);
 router.post('/productos', productos.create);
