@@ -4,7 +4,8 @@ const {
   crearCrud,
   datosDonacion,
   datosDonante,
-  datosMovimiento
+  datosMovimiento,
+  datosTransferencia
 } = require('../utils/crudController');
 const {
   actualizarFamiliaConBeneficiario,
@@ -324,66 +325,6 @@ const productos = {
 // ─────────────────────────────────────────
 //  TRANSFERENCIAS
 // ─────────────────────────────────────────
-const transferencias = {
-  getAll: async (req, res) => {
-    try {
-      const data = await loreto.transferencias.findMany({
-        include: { producto: true }
-      });
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al obtener transferencias' });
-    }
-  },
-
-  getById: async (req, res) => {
-    try {
-      const data = await loreto.transferencias.findUnique({
-        where: { id: Number(req.params.id) },
-        include: { producto: true }
-      });
-      if (!data) return res.status(404).json({ error: 'Transferencia no encontrada' });
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al obtener transferencia' });
-    }
-  },
-
-  create: async (req, res) => {
-    try {
-      const { producto_id, cantidad, destino } = req.body;
-      const data = await loreto.transferencias.create({
-        data: { producto_id, cantidad, destino }
-      });
-      res.status(201).json(data);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al crear transferencia' });
-    }
-  },
-
-  update: async (req, res) => {
-    try {
-      const { producto_id, cantidad, destino } = req.body;
-      const data = await loreto.transferencias.update({
-        where: { id: Number(req.params.id) },
-        data: { producto_id, cantidad, destino }
-      });
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar transferencia' });
-    }
-  },
-
-  delete: async (req, res) => {
-    try {
-      await loreto.transferencias.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Transferencia eliminada' });
-    } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar transferencia' });
-    }
-  }
-};
-
 const donantes = crearCrud(loreto, 'donantes', {
   label: 'donante',
   buildData: datosDonante
@@ -399,6 +340,12 @@ const movimientos = crearCrud(loreto, 'movimientos', {
   label: 'movimiento',
   include: { producto: true },
   buildData: datosMovimiento
+});
+
+const transferencias = crearCrud(loreto, 'transferencias', {
+  label: 'transferencia',
+  include: { producto: true },
+  buildData: datosTransferencia
 });
 
 module.exports = {

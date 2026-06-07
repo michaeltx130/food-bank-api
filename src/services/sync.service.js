@@ -58,6 +58,7 @@ const asegurarInfraestructuraSync = async () => {
       estado VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
       evento_id VARCHAR(80) NULL,
       error TEXT NULL,
+      aprobacion ENUM('en_espera', 'aceptado', 'denegado') NOT NULL DEFAULT 'en_espera',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -70,6 +71,7 @@ const asegurarInfraestructuraSync = async () => {
   await asegurarColumna('transferencias', 'estado', "VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE'");
   await asegurarColumna('transferencias', 'evento_id', 'VARCHAR(80) NULL');
   await asegurarColumna('transferencias', 'error', 'TEXT NULL');
+  await asegurarColumna('transferencias', 'aprobacion', "ENUM('en_espera', 'aceptado', 'denegado') NOT NULL DEFAULT 'en_espera'");
   await asegurarColumna('transferencias', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
   await asegurarColumna('transferencias', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
   await asegurarIndice(

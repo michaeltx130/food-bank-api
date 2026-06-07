@@ -43,14 +43,13 @@ router.put('/productos/:id', productos.update);
 router.delete('/productos/:id', productos.delete);
 
 router.get('/transferencias', transferencias.getAll);
+router.get('/transferencias/pendientes', transferencias.getPendientes);
 router.get('/transferencias/:id', transferencias.getById);
 router.post('/transferencias', transferencias.create);
-router.put('/transferencias/:id', transferencias.update);
-router.delete('/transferencias/:id', transferencias.delete);
-
-router.get('/transferencias/pendientes', transferencias.getPendientes);
 router.post('/transferencias/:id/aprobar', transferencias.aprobar);
 router.post('/transferencias/:id/rechazar', transferencias.rechazar);
+router.put('/transferencias/:id', transferencias.update);
+router.delete('/transferencias/:id', transferencias.delete);
 
 router.get('/donaciones', donaciones.getAll);
 router.get('/donaciones/:id', donaciones.getById);
