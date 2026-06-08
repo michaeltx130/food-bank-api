@@ -14,6 +14,7 @@ const {
   kafkaDisponible,
   publicarEventosPendientes
 } = require('../events/kafka/kafka.service');
+const axios = require('axios');
 const { unitParaCrear } = require('../utils/productUnit');
 
 const normalizarNombreProducto = (nombre) => String(nombre).toLowerCase().replace(/\s+/g, '');
@@ -439,7 +440,6 @@ router.post('/red/productos/solicitar', async (req, res) => {
       return res.status(400).json({ error: 'El origen no puede ser el mismo nodo.' });
     }
 
-    // Le pide al nodo origen que aparte los productos
     const response = await axios.post(`${url_origen}/api/red/productos/apartar`, {
       destino: BANCO_ID,
       producto_nombre,
@@ -479,7 +479,6 @@ router.post('/red/productos/apartar', async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    // Busca el producto por nombre
     const productoExistente = await buscarProductoPorNombreNormalizado(conn, producto_nombre);
 
     if (!productoExistente) {
@@ -490,13 +489,11 @@ router.post('/red/productos/apartar', async (req, res) => {
       return res.status(400).json({ error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}` });
     }
 
-    // Descuenta el stock (apartado)
     await conn.query(
       'UPDATE productos SET cantidad = cantidad - ? WHERE id = ?',
       [cantidadNumero, productoExistente.id]
     );
 
-    // Registra la transferencia como en_espera de aprobacion
     await insertarTransferencia(conn, {
       transferencia_id: transferenciaId,
       producto_id: productoExistente.id,
