@@ -27,6 +27,8 @@ const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092')
 const TOPICS = {
   TRANSFER_REQUESTED: 'transfer.requested',
   TRANSFER_RECEIVED: 'transfer.received',
+  TRANSFER_APPROVED: 'transfer.approved',
+  TRANSFER_REJECTED: 'transfer.rejected',
   INVENTORY_UPDATED: 'inventory.updated'
 };
 
@@ -291,6 +293,100 @@ const manejarTransferReceived = async (message) => {
   );
 };
 
+const manejarTransferApproved = async (message) => {
+  const evento = JSON.parse(message.value.toString());
+  const payload = evento.payload || evento;
+
+  if (payload.origen !== BANCO_ID) return;
+
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const productoExistente = await buscarProductoPorNombreNormalizado(conn, payload.producto_nombre);
+
+    if (productoExistente) {
+      await conn.query(
+        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
+        [payload.cantidad, productoExistente.id]
+      );
+    } else {
+      await conn.query(
+        'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
+        [payload.producto_nombre, payload.categoria_id, payload.cantidad]
+      );
+    }
+
+    await conn.query(
+      'UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?',
+      ['COMPLETADO', 'aceptado', payload.transferencia_id]
+    );
+
+    await conn.commit();
+    console.log(`Transferencia ${payload.transferencia_id} aprobada y completada`);
+
+    await enviarNotificacion({
+      tipo: 'TRANSFERENCIA_APROBADA',
+      mensaje: `Transferencia ${payload.transferencia_id} aprobada por ${payload.destino}`,
+      transferencia_id: payload.transferencia_id
+    }).catch((error) => {
+      console.error('RabbitMQ no pudo enviar notificacion:', error.message);
+    });
+  } catch (error) {
+    if (conn) await conn.rollback().catch(() => {});
+    console.error('Error al procesar transfer.approved:', error.message);
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+const manejarTransferRejected = async (message) => {
+  const evento = JSON.parse(message.value.toString());
+  const payload = evento.payload || evento;
+
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    if (payload.destino === BANCO_ID) {
+      await conn.query(
+        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
+        [payload.cantidad, payload.producto_id]
+      );
+      await conn.query(
+        'UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?',
+        ['RECHAZADO', 'denegado', payload.motivo, payload.transferencia_id]
+      );
+      console.log(`Stock devuelto por rechazo: ${payload.transferencia_id}`);
+    }
+
+    if (payload.origen === BANCO_ID) {
+      await conn.query(
+        'UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?',
+        ['RECHAZADO', 'denegado', payload.motivo, payload.transferencia_id]
+      );
+      console.log(`Transferencia rechazada en origen: ${payload.transferencia_id}`);
+    }
+
+    await conn.commit();
+
+    await enviarNotificacion({
+      tipo: 'TRANSFERENCIA_RECHAZADA',
+      mensaje: `Transferencia ${payload.transferencia_id} rechazada: ${payload.motivo}`,
+      transferencia_id: payload.transferencia_id
+    }).catch((error) => {
+      console.error('RabbitMQ no pudo enviar notificacion:', error.message);
+    });
+  } catch (error) {
+    if (conn) await conn.rollback().catch(() => {});
+    console.error('Error al procesar transfer.rejected:', error.message);
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
 const conectarConsumidorKafka = async () => {
   const kafka = crearKafka();
   const consumer = kafka.consumer({ groupId: `foodbank-${BANCO_ID}` });
@@ -308,6 +404,14 @@ const conectarConsumidorKafka = async () => {
 
         if (topic === TOPICS.TRANSFER_RECEIVED) {
           await manejarTransferReceived(message);
+        }
+
+        if (topic === TOPICS.TRANSFER_APPROVED) {
+          await manejarTransferApproved(message);
+        }
+    
+        if (topic === TOPICS.TRANSFER_REJECTED) {
+          await manejarTransferRejected(message);
         }
       }
     });
