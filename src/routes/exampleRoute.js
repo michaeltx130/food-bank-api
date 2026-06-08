@@ -419,6 +419,117 @@ router.post('/red/productos/enviar', async (req, res) => {
   }
 });
 
+router.post('/red/productos/solicitar', async (req, res) => {
+  try {
+    const { origen, producto_nombre, cantidad } = req.body;
+    const cantidadNumero = Number(cantidad);
+
+    if (!origen || !producto_nombre || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
+      return res.status(400).json({ error: 'Faltan campos validos: origen, producto_nombre, cantidad' });
+    }
+
+    const { NODOS_MAP } = require('../services/nodo.service');
+    const url_origen = NODOS_MAP[String(origen).toLowerCase()];
+
+    if (!url_origen) {
+      return res.status(400).json({ error: `Banco '${origen}' no reconocido.` });
+    }
+
+    if (url_origen === MI_NODO) {
+      return res.status(400).json({ error: 'El origen no puede ser el mismo nodo.' });
+    }
+
+    // Le pide al nodo origen que aparte los productos
+    const response = await axios.post(`${url_origen}/api/red/productos/apartar`, {
+      destino: BANCO_ID,
+      producto_nombre,
+      cantidad: cantidadNumero
+    });
+
+    return res.status(202).json({
+      mensaje: 'Solicitud enviada, esperando aprobacion del nodo origen',
+      origen,
+      producto_nombre,
+      cantidad: cantidadNumero,
+      transferencia_id: response.data.transferencia_id
+    });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+router.post('/red/productos/apartar', async (req, res) => {
+  let conn;
+
+  try {
+    const { destino, producto_nombre, cantidad } = req.body;
+    const cantidadNumero = Number(cantidad);
+
+    if (!destino || !producto_nombre || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
+      return res.status(400).json({ error: 'Faltan campos validos: destino, producto_nombre, cantidad' });
+    }
+
+    await asegurarInfraestructuraSync();
+
+    const transferenciaId = crearId('trf');
+    const eventoId = crearId('evt');
+
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    // Busca el producto por nombre
+    const productoExistente = await buscarProductoPorNombreNormalizado(conn, producto_nombre);
+
+    if (!productoExistente) {
+      return res.status(404).json({ error: `Producto '${producto_nombre}' no encontrado en este nodo` });
+    }
+
+    if (productoExistente.cantidad < cantidadNumero) {
+      return res.status(400).json({ error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}` });
+    }
+
+    // Descuenta el stock (apartado)
+    await conn.query(
+      'UPDATE productos SET cantidad = cantidad - ? WHERE id = ?',
+      [cantidadNumero, productoExistente.id]
+    );
+
+    // Registra la transferencia como en_espera de aprobacion
+    await insertarTransferencia(conn, {
+      transferencia_id: transferenciaId,
+      producto_id: productoExistente.id,
+      producto_nombre: productoExistente.nombre,
+      categoria_id: productoExistente.categoria_id,
+      cantidad: cantidadNumero,
+      origen: BANCO_ID,
+      destino: String(destino).toLowerCase(),
+      estado: 'APARTADO',
+      evento_id: eventoId
+    });
+
+    await conn.commit();
+
+    return res.status(202).json({
+      mensaje: 'Productos apartados, esperando aprobacion',
+      transferencia_id: transferenciaId,
+      producto: productoExistente.nombre,
+      cantidad: cantidadNumero,
+      estado: 'en_espera'
+    });
+  } catch (error) {
+    if (conn) {
+      await conn.rollback().catch(rollbackError => {
+        console.error('Error al revertir apartado:', rollbackError.message);
+      });
+    }
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 /////////////////////////////////////////  Sincronizacion /////////////////////////////////////////////////////
 
 router.post('/sync/push', async (req, res) => {
