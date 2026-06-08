@@ -219,6 +219,20 @@ const manejarTransferRequested = async (message) => {
       return;
     }
 
+    if (payload.categoria_id && payload.categoria_nombre) {
+      const [catRows] = await conn.query(
+        "SELECT id FROM categorias WHERE id = ? LIMIT 1",
+        [payload.categoria_id],
+      );
+
+      if (catRows.length === 0) {
+        await conn.query("INSERT INTO categorias (id, nombre) VALUES (?, ?)", [
+          payload.categoria_id,
+          payload.categoria_nombre,
+        ]);
+      }
+    }
+
     const productoExistente = await buscarProductoPorNombreNormalizado(
       conn,
       payload.producto_nombre,

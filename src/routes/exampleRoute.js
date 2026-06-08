@@ -1,23 +1,29 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { db } = require('../config/db');
-const { obtenerEstadoNodos, obtenerDe, MI_NODO, BANCO_ID } = require('../services/nodo.service');
+const { db } = require("../config/db");
+const {
+  obtenerEstadoNodos,
+  obtenerDe,
+  MI_NODO,
+  BANCO_ID,
+} = require("../services/nodo.service");
 const {
   BANCO_NAME,
   crearId,
   asegurarInfraestructuraSync,
   insertarTransferencia,
-  registrarEventoSync
-} = require('../services/sync.service');
+  registrarEventoSync,
+} = require("../services/sync.service");
 const {
   TOPICS,
   kafkaDisponible,
-  publicarEventosPendientes
-} = require('../events/kafka/kafka.service');
-const axios = require('axios');
-const { unitParaCrear } = require('../utils/productUnit');
+  publicarEventosPendientes,
+} = require("../events/kafka/kafka.service");
+const axios = require("axios");
+const { unitParaCrear } = require("../utils/productUnit");
 
-const normalizarNombreProducto = (nombre) => String(nombre).toLowerCase().replace(/\s+/g, '');
+const normalizarNombreProducto = (nombre) =>
+  String(nombre).toLowerCase().replace(/\s+/g, "");
 
 const buscarProductoPorNombreNormalizado = async (conn, nombre) => {
   const [rows] = await conn.query(
@@ -26,13 +32,13 @@ const buscarProductoPorNombreNormalizado = async (conn, nombre) => {
      WHERE LOWER(REPLACE(nombre, ' ', '')) = ?
      LIMIT 1
      FOR UPDATE`,
-    [normalizarNombreProducto(nombre)]
+    [normalizarNombreProducto(nombre)],
   );
 
   return rows[0];
 };
 
-router.get('/nodos/estado', async (req, res) => {
+router.get("/nodos/estado", async (req, res) => {
   try {
     const estados = await obtenerEstadoNodos();
     res.json({ timestamp: new Date().toISOString(), nodos: estados });
@@ -41,54 +47,54 @@ router.get('/nodos/estado', async (req, res) => {
   }
 });
 
-router.get('/sync/estado', (req, res) => {
+router.get("/sync/estado", (req, res) => {
   res.json({
     banco: process.env.BANCO_NAME,
-    sync_driver: process.env.SYNC_DRIVER || 'kafka',
+    sync_driver: process.env.SYNC_DRIVER || "kafka",
     kafka: {
       disponible: kafkaDisponible(),
-      brokers: process.env.KAFKA_BROKERS || 'localhost:9092'
+      brokers: process.env.KAFKA_BROKERS || "localhost:9092",
     },
     rabbitmq: {
-      habilitado: process.env.RABBITMQ_ENABLED !== 'false',
-      url: process.env.RABBITMQ_URL || 'amqp://localhost:5672'
-    }
+      habilitado: process.env.RABBITMQ_ENABLED !== "false",
+      url: process.env.RABBITMQ_URL || "amqp://localhost:5672",
+    },
   });
 });
 
 /////////////////////////////////////////  Tablas Locales /////////////////////////////////////////////////////
 
-router.get('/productos', async (req, res) => {
+router.get("/productos", async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM productos');
+    const [rows] = await db.query("SELECT * FROM productos");
     res.json({ banco: process.env.BANCO_NAME, productos: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/categorias', async (req, res) => {
+router.get("/categorias", async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM categorias');
+    const [rows] = await db.query("SELECT * FROM categorias");
     res.json({ banco: process.env.BANCO_NAME, categorias: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/tabla/:nombre', async (req, res) => {
+router.get("/tabla/:nombre", async (req, res) => {
   const tablas_permitidas = [
-    'productos',
-    'categorias',
-    'movimientos',
-    'donaciones',
-    'entregas',
-    'transferencias',
-    'donantes',
-    'beneficiarios',
-    'familias',
-    'sync_events',
-    'sync_events_recibidos'
+    "productos",
+    "categorias",
+    "movimientos",
+    "donaciones",
+    "entregas",
+    "transferencias",
+    "donantes",
+    "beneficiarios",
+    "familias",
+    "sync_events",
+    "sync_events_recibidos",
   ];
   const tabla = req.params.nombre;
 
@@ -100,11 +106,17 @@ router.get('/tabla/:nombre', async (req, res) => {
     const [rows] = await db.query(`SELECT * FROM ??`, [tabla]);
     res.json({ banco: process.env.BANCO_NAME, tabla, datos: rows });
   } catch (error) {
-    res.status(404).json({ banco: process.env.BANCO_NAME, tabla, error: `Tabla no existe en este banco` });
+    res
+      .status(404)
+      .json({
+        banco: process.env.BANCO_NAME,
+        tabla,
+        error: `Tabla no existe en este banco`,
+      });
   }
 });
 
-router.post('/agregar_productos', async (req, res) => {
+router.post("/agregar_productos", async (req, res) => {
   let conn;
 
   try {
@@ -113,8 +125,18 @@ router.post('/agregar_productos', async (req, res) => {
     const cantidadNumero = Number(cantidad);
     const unitValidada = unitParaCrear(unit);
 
-    if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
-      return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
+    if (
+      !nombre ||
+      !Number.isInteger(categoriaId) ||
+      categoriaId <= 0 ||
+      !Number.isInteger(cantidadNumero) ||
+      cantidadNumero <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Faltan campos validos: nombre, categoria_id, cantidad",
+        });
     }
 
     if (!unitValidada.valido) {
@@ -124,17 +146,20 @@ router.post('/agregar_productos', async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(conn, nombre);
+    const productoExistente = await buscarProductoPorNombreNormalizado(
+      conn,
+      nombre,
+    );
 
     if (productoExistente) {
       await conn.query(
-        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
-        [cantidadNumero, productoExistente.id]
+        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+        [cantidadNumero, productoExistente.id],
       );
       await conn.commit();
 
       return res.json({
-        mensaje: 'Cantidad actualizada',
+        mensaje: "Cantidad actualizada",
         banco: process.env.BANCO_NAME,
         producto: {
           id: productoExistente.id,
@@ -143,32 +168,35 @@ router.post('/agregar_productos', async (req, res) => {
           unit: productoExistente.unit,
           cantidad_anterior: productoExistente.cantidad,
           cantidad_sumada: cantidadNumero,
-          cantidad_actual: productoExistente.cantidad + cantidadNumero
-        }
+          cantidad_actual: productoExistente.cantidad + cantidadNumero,
+        },
       });
     }
 
     const [result] = await conn.query(
-      'INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)',
-      [nombre, categoriaId, cantidadNumero, unitValidada.valor]
+      "INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)",
+      [nombre, categoriaId, cantidadNumero, unitValidada.valor],
     );
     await conn.commit();
 
     return res.status(201).json({
-      mensaje: 'Producto creado',
+      mensaje: "Producto creado",
       banco: process.env.BANCO_NAME,
       producto: {
         id: result.insertId,
         nombre,
         categoria_id: categoriaId,
         unit: unitValidada.valor,
-        cantidad: cantidadNumero
-      }
+        cantidad: cantidadNumero,
+      },
     });
   } catch (error) {
     if (conn) {
-      await conn.rollback().catch(rollbackError => {
-        console.error('Error al revertir alta de producto:', rollbackError.message);
+      await conn.rollback().catch((rollbackError) => {
+        console.error(
+          "Error al revertir alta de producto:",
+          rollbackError.message,
+        );
       });
     }
 
@@ -178,7 +206,7 @@ router.post('/agregar_productos', async (req, res) => {
   }
 });
 
-router.post('/recibir_productos', async (req, res) => {
+router.post("/recibir_productos", async (req, res) => {
   let conn;
 
   try {
@@ -187,8 +215,18 @@ router.post('/recibir_productos', async (req, res) => {
     const cantidadNumero = Number(cantidad);
     const unitValidada = unitParaCrear(unit);
 
-    if (!nombre || !Number.isInteger(categoriaId) || categoriaId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
-      return res.status(400).json({ error: 'Faltan campos validos: nombre, categoria_id, cantidad' });
+    if (
+      !nombre ||
+      !Number.isInteger(categoriaId) ||
+      categoriaId <= 0 ||
+      !Number.isInteger(cantidadNumero) ||
+      cantidadNumero <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Faltan campos validos: nombre, categoria_id, cantidad",
+        });
     }
 
     if (!unitValidada.valido) {
@@ -198,41 +236,50 @@ router.post('/recibir_productos', async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(conn, nombre);
+    const productoExistente = await buscarProductoPorNombreNormalizado(
+      conn,
+      nombre,
+    );
 
     if (productoExistente) {
-      await conn.query('UPDATE productos SET cantidad = cantidad + ? WHERE id = ?', [cantidadNumero, productoExistente.id]);
+      await conn.query(
+        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+        [cantidadNumero, productoExistente.id],
+      );
       await conn.commit();
 
       return res.json({
-        mensaje: 'Cantidad actualizada',
+        mensaje: "Cantidad actualizada",
         producto: productoExistente.nombre,
         unit: productoExistente.unit,
         cantidad_sumada: cantidadNumero,
-        transaccion: { estado: 'commit', operacion: 'sumar_en_destino' }
+        transaccion: { estado: "commit", operacion: "sumar_en_destino" },
       });
     } else {
-      await conn.query('INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)', [nombre, categoriaId, cantidadNumero, unitValidada.valor]);
+      await conn.query(
+        "INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)",
+        [nombre, categoriaId, cantidadNumero, unitValidada.valor],
+      );
       await conn.commit();
 
       return res.json({
-        mensaje: 'Producto creado',
+        mensaje: "Producto creado",
         producto: nombre,
         unit: unitValidada.valor,
         cantidad: cantidadNumero,
-        transaccion: { estado: 'commit', operacion: 'crear_en_destino' }
+        transaccion: { estado: "commit", operacion: "crear_en_destino" },
       });
     }
   } catch (error) {
     if (conn) {
-      await conn.rollback().catch(rollbackError => {
-        console.error('Error al revertir recepcion:', rollbackError.message);
+      await conn.rollback().catch((rollbackError) => {
+        console.error("Error al revertir recepcion:", rollbackError.message);
       });
     }
 
     res.status(500).json({
       error: error.message,
-      transaccion: { estado: 'rollback', operacion: 'recibir_producto' }
+      transaccion: { estado: "rollback", operacion: "recibir_producto" },
     });
   } finally {
     if (conn) conn.release();
@@ -241,11 +288,11 @@ router.post('/recibir_productos', async (req, res) => {
 
 /////////////////////////////////////////  Tablas En Red /////////////////////////////////////////////////////
 
-router.get('/red/productos', async (req, res) => {
+router.get("/red/productos", async (req, res) => {
   try {
-    const { NODOS } = require('../services/nodo.service');
+    const { NODOS } = require("../services/nodo.service");
     const resultados = await Promise.all(
-      NODOS.map(nodo => obtenerDe(nodo, '/api/productos'))
+      NODOS.map((nodo) => obtenerDe(nodo, "/api/productos")),
     );
     res.json({ timestamp: new Date().toISOString(), red: resultados });
   } catch (error) {
@@ -253,12 +300,12 @@ router.get('/red/productos', async (req, res) => {
   }
 });
 
-router.get('/red/tabla/:nombre', async (req, res) => {
+router.get("/red/tabla/:nombre", async (req, res) => {
   try {
-    const { NODOS } = require('../services/nodo.service');
+    const { NODOS } = require("../services/nodo.service");
     const tabla = req.params.nombre;
     const resultados = await Promise.all(
-      NODOS.map(nodo => obtenerDe(nodo, `/api/tabla/${tabla}`))
+      NODOS.map((nodo) => obtenerDe(nodo, `/api/tabla/${tabla}`)),
     );
     res.json({ timestamp: new Date().toISOString(), tabla, red: resultados });
   } catch (error) {
@@ -266,7 +313,7 @@ router.get('/red/tabla/:nombre', async (req, res) => {
   }
 });
 
-router.post('/red/productos/enviar', async (req, res) => {
+router.post("/red/productos/enviar", async (req, res) => {
   let conn;
   let transferenciaFallida;
 
@@ -275,39 +322,60 @@ router.post('/red/productos/enviar', async (req, res) => {
     const productoId = Number(producto_id);
     const cantidadNumero = Number(cantidad);
 
-    if (!destino || !Number.isInteger(productoId) || productoId <= 0 || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
-      return res.status(400).json({ error: 'Faltan campos validos: destino, producto_id, cantidad' });
+    if (
+      !destino ||
+      !Number.isInteger(productoId) ||
+      productoId <= 0 ||
+      !Number.isInteger(cantidadNumero) ||
+      cantidadNumero <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Faltan campos validos: destino, producto_id, cantidad",
+        });
     }
 
-    const { NODOS_MAP } = require('../services/nodo.service');
+    const { NODOS_MAP } = require("../services/nodo.service");
     const url_destino = NODOS_MAP[String(destino).toLowerCase()];
     if (!url_destino) {
-      return res.status(400).json({ error: `Banco '${destino}' no reconocido.` });
+      return res
+        .status(400)
+        .json({ error: `Banco '${destino}' no reconocido.` });
     }
 
     if (url_destino === MI_NODO) {
-      return res.status(400).json({ error: 'El destino no puede ser el mismo nodo origen.' });
+      return res
+        .status(400)
+        .json({ error: "El destino no puede ser el mismo nodo origen." });
     }
 
     await asegurarInfraestructuraSync();
 
-    const transferenciaId = crearId('trf');
-    const eventoId = crearId('evt');
+    const transferenciaId = crearId("trf");
+    const eventoId = crearId("evt");
 
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    // Bloquea el producto mientras se valida y se descuenta el inventario.
-    const [rows] = await conn.query('SELECT * FROM productos WHERE id = ? FOR UPDATE', [productoId]);
+    const [rows] = await conn.query(
+      `SELECT p.*, c.nombre as categoria_nombre 
+   FROM productos p 
+   LEFT JOIN categorias c ON p.categoria_id = c.id 
+   WHERE p.id = ? FOR UPDATE`,
+      [productoId],
+    );
     if (rows.length === 0) {
-      const error = new Error('Producto no encontrado');
+      const error = new Error("Producto no encontrado");
       error.statusCode = 404;
       throw error;
     }
 
     const producto = rows[0];
     if (producto.cantidad < cantidadNumero) {
-      const error = new Error(`Stock insuficiente. Disponible: ${producto.cantidad}`);
+      const error = new Error(
+        `Stock insuficiente. Disponible: ${producto.cantidad}`,
+      );
       error.statusCode = 400;
       throw error;
     }
@@ -321,19 +389,22 @@ router.post('/red/productos/enviar', async (req, res) => {
       cantidad: cantidadNumero,
       origen: BANCO_ID,
       destino: String(destino).toLowerCase(),
-      estado: 'FALLIDO',
-      evento_id: eventoId
+      estado: "FALLIDO",
+      evento_id: eventoId,
     };
 
     await insertarTransferencia(conn, {
       ...transferenciaFallida,
-      estado: 'PENDIENTE'
+      estado: "PENDIENTE",
     });
 
-    await conn.query('UPDATE productos SET cantidad = cantidad - ? WHERE id = ?', [cantidadNumero, productoId]);
     await conn.query(
-      'UPDATE transferencias SET estado = ? WHERE transferencia_id = ?',
-      ['DESCONTADO_ORIGEN', transferenciaId]
+      "UPDATE productos SET cantidad = cantidad - ? WHERE id = ?",
+      [cantidadNumero, productoId],
+    );
+    await conn.query(
+      "UPDATE transferencias SET estado = ? WHERE transferencia_id = ?",
+      ["DESCONTADO_ORIGEN", transferenciaId],
     );
 
     const payloadEvento = {
@@ -342,22 +413,23 @@ router.post('/red/productos/enviar', async (req, res) => {
       producto_nombre: producto.nombre,
       producto_unit: producto.unit,
       categoria_id: producto.categoria_id,
+      categoria_nombre: producto.categoria_nombre,
       cantidad: cantidadNumero,
       origen: BANCO_ID,
       origen_nombre: BANCO_NAME,
       destino: String(destino).toLowerCase(),
       destino_url: url_destino,
-      estado: 'DESCONTADO_ORIGEN'
+      estado: "DESCONTADO_ORIGEN",
     };
 
     await registrarEventoSync(conn, {
       evento_id: eventoId,
       topic: TOPICS.TRANSFER_REQUESTED,
-      tipo: 'TRANSFER_REQUESTED',
+      tipo: "TRANSFER_REQUESTED",
       origen: BANCO_ID,
       destino: String(destino).toLowerCase(),
       payload: payloadEvento,
-      estado: 'pendiente'
+      estado: "pendiente",
     });
 
     await conn.commit();
@@ -372,8 +444,9 @@ router.post('/red/productos/enviar', async (req, res) => {
     }
 
     return res.status(202).json({
-      mensaje: advertenciaKafka || 'Transferencia registrada y publicada en Kafka',
-      modo: 'kafka',
+      mensaje:
+        advertenciaKafka || "Transferencia registrada y publicada en Kafka",
+      modo: "kafka",
       origen: process.env.BANCO_NAME,
       destino,
       transferencia_id: transferenciaId,
@@ -382,26 +455,32 @@ router.post('/red/productos/enviar', async (req, res) => {
       unit: producto.unit,
       cantidad_transferida: cantidadNumero,
       transaccion: {
-        estado: 'commit',
+        estado: "commit",
         origen: `${producto.cantidad} -> ${producto.cantidad - cantidadNumero}`,
-        destino: 'pendiente_por_evento_kafka'
+        destino: "pendiente_por_evento_kafka",
       },
       eventosKafka,
-      advertencia: advertenciaKafka
+      advertencia: advertenciaKafka,
     });
   } catch (error) {
     if (conn) {
-      await conn.rollback().catch(rollbackError => {
-        console.error('Error al revertir transferencia:', rollbackError.message);
+      await conn.rollback().catch((rollbackError) => {
+        console.error(
+          "Error al revertir transferencia:",
+          rollbackError.message,
+        );
       });
     }
 
     if (transferenciaFallida) {
       await insertarTransferencia(db, {
         ...transferenciaFallida,
-        error: error.message
-      }).catch(logError => {
-        console.error('Error al registrar transferencia fallida:', logError.message);
+        error: error.message,
+      }).catch((logError) => {
+        console.error(
+          "Error al registrar transferencia fallida:",
+          logError.message,
+        );
       });
     }
 
@@ -410,88 +489,124 @@ router.post('/red/productos/enviar', async (req, res) => {
       origen: process.env.BANCO_NAME,
       destino: req.body.destino,
       transaccion: {
-        estado: 'rollback',
-        origen: 'sin cambios confirmados'
+        estado: "rollback",
+        origen: "sin cambios confirmados",
       },
-      resultado: error.resultado
+      resultado: error.resultado,
     });
   } finally {
     if (conn) conn.release();
   }
 });
 
-router.post('/red/productos/solicitar', async (req, res) => {
+router.post("/red/productos/solicitar", async (req, res) => {
   try {
     const { origen, producto_nombre, cantidad } = req.body;
     const cantidadNumero = Number(cantidad);
 
-    if (!origen || !producto_nombre || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
-      return res.status(400).json({ error: 'Faltan campos validos: origen, producto_nombre, cantidad' });
+    if (
+      !origen ||
+      !producto_nombre ||
+      !Number.isInteger(cantidadNumero) ||
+      cantidadNumero <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Faltan campos validos: origen, producto_nombre, cantidad",
+        });
     }
 
-    const { NODOS_MAP } = require('../services/nodo.service');
+    const { NODOS_MAP } = require("../services/nodo.service");
     const url_origen = NODOS_MAP[String(origen).toLowerCase()];
 
     if (!url_origen) {
-      return res.status(400).json({ error: `Banco '${origen}' no reconocido.` });
+      return res
+        .status(400)
+        .json({ error: `Banco '${origen}' no reconocido.` });
     }
 
     if (url_origen === MI_NODO) {
-      return res.status(400).json({ error: 'El origen no puede ser el mismo nodo.' });
+      return res
+        .status(400)
+        .json({ error: "El origen no puede ser el mismo nodo." });
     }
 
-    const response = await axios.post(`${url_origen}/api/red/productos/apartar`, {
-      destino: BANCO_ID,
-      producto_nombre,
-      cantidad: cantidadNumero
-    });
+    const response = await axios.post(
+      `${url_origen}/api/red/productos/apartar`,
+      {
+        destino: BANCO_ID,
+        producto_nombre,
+        cantidad: cantidadNumero,
+      },
+    );
 
     return res.status(202).json({
-      mensaje: 'Solicitud enviada, esperando aprobacion del nodo origen',
+      mensaje: "Solicitud enviada, esperando aprobacion del nodo origen",
       origen,
       producto_nombre,
       cantidad: cantidadNumero,
-      transferencia_id: response.data.transferencia_id
+      transferencia_id: response.data.transferencia_id,
     });
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     });
   }
 });
 
-router.post('/red/productos/apartar', async (req, res) => {
+router.post("/red/productos/apartar", async (req, res) => {
   let conn;
 
   try {
     const { destino, producto_nombre, cantidad } = req.body;
     const cantidadNumero = Number(cantidad);
 
-    if (!destino || !producto_nombre || !Number.isInteger(cantidadNumero) || cantidadNumero <= 0) {
-      return res.status(400).json({ error: 'Faltan campos validos: destino, producto_nombre, cantidad' });
+    if (
+      !destino ||
+      !producto_nombre ||
+      !Number.isInteger(cantidadNumero) ||
+      cantidadNumero <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Faltan campos validos: destino, producto_nombre, cantidad",
+        });
     }
 
     await asegurarInfraestructuraSync();
 
-    const transferenciaId = crearId('trf');
-    const eventoId = crearId('evt');
+    const transferenciaId = crearId("trf");
+    const eventoId = crearId("evt");
 
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(conn, producto_nombre);
+    const productoExistente = await buscarProductoPorNombreNormalizado(
+      conn,
+      producto_nombre,
+    );
 
     if (!productoExistente) {
-      return res.status(404).json({ error: `Producto '${producto_nombre}' no encontrado en este nodo` });
+      return res
+        .status(404)
+        .json({
+          error: `Producto '${producto_nombre}' no encontrado en este nodo`,
+        });
     }
 
     if (productoExistente.cantidad < cantidadNumero) {
-      return res.status(400).json({ error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}` });
+      return res
+        .status(400)
+        .json({
+          error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}`,
+        });
     }
 
     await conn.query(
-      'UPDATE productos SET cantidad = cantidad - ? WHERE id = ?',
-      [cantidadNumero, productoExistente.id]
+      "UPDATE productos SET cantidad = cantidad - ? WHERE id = ?",
+      [cantidadNumero, productoExistente.id],
     );
 
     await insertarTransferencia(conn, {
@@ -502,23 +617,23 @@ router.post('/red/productos/apartar', async (req, res) => {
       cantidad: cantidadNumero,
       origen: BANCO_ID,
       destino: String(destino).toLowerCase(),
-      estado: 'APARTADO',
-      evento_id: eventoId
+      estado: "APARTADO",
+      evento_id: eventoId,
     });
 
     await conn.commit();
 
     return res.status(202).json({
-      mensaje: 'Productos apartados, esperando aprobacion',
+      mensaje: "Productos apartados, esperando aprobacion",
       transferencia_id: transferenciaId,
       producto: productoExistente.nombre,
       cantidad: cantidadNumero,
-      estado: 'en_espera'
+      estado: "en_espera",
     });
   } catch (error) {
     if (conn) {
-      await conn.rollback().catch(rollbackError => {
-        console.error('Error al revertir apartado:', rollbackError.message);
+      await conn.rollback().catch((rollbackError) => {
+        console.error("Error al revertir apartado:", rollbackError.message);
       });
     }
     res.status(500).json({ error: error.message });
@@ -529,7 +644,7 @@ router.post('/red/productos/apartar', async (req, res) => {
 
 /////////////////////////////////////////  Sincronizacion /////////////////////////////////////////////////////
 
-router.post('/sync/push', async (req, res) => {
+router.post("/sync/push", async (req, res) => {
   try {
     const limitBody = req.body?.limit;
     const limite = Math.min(Number(limitBody || req.query.limit || 20), 100);
@@ -540,9 +655,9 @@ router.post('/sync/push', async (req, res) => {
 
     return res.json({
       banco: process.env.BANCO_NAME,
-      modo: 'kafka',
+      modo: "kafka",
       eventos_procesados: resultados.length,
-      resultados
+      resultados,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
