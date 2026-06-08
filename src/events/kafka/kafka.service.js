@@ -395,6 +395,8 @@ const conectarConsumidorKafka = async () => {
     await consumer.connect();
     await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: KAFKA_FROM_BEGINNING });
     await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: KAFKA_FROM_BEGINNING });
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_APPROVED, fromBeginning: KAFKA_FROM_BEGINNING });
+    await consumer.subscribe({ topic: TOPICS.TRANSFER_REJECTED, fromBeginning: KAFKA_FROM_BEGINNING });
 
     await consumer.run({
       eachMessage: async ({ topic, message }) => {
