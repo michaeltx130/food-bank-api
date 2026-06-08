@@ -1,4 +1,4 @@
-const { db } = require('../../config/db');
+const { db } = require("../../config/db");
 const {
   BANCO_ID,
   BANCO_NAME,
@@ -6,30 +6,30 @@ const {
   parsearPayload,
   asegurarInfraestructuraSync,
   insertarTransferencia,
-  registrarEventoSync
-} = require('../../services/sync.service');
-const { enviarNotificacion } = require('../rabbitmq/notification.service');
-const { unitParaCrear } = require('../../utils/productUnit');
+  registrarEventoSync,
+} = require("../../services/sync.service");
+const { enviarNotificacion } = require("../rabbitmq/notification.service");
+const { unitParaCrear } = require("../../utils/productUnit");
 
 let Kafka;
 
 try {
-  Kafka = require('kafkajs').Kafka;
+  Kafka = require("kafkajs").Kafka;
 } catch (error) {
   Kafka = null;
 }
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092')
-  .split(',')
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092")
+  .split(",")
   .map((broker) => broker.trim())
   .filter(Boolean);
 
 const TOPICS = {
-  TRANSFER_REQUESTED: 'transfer.requested',
-  TRANSFER_RECEIVED: 'transfer.received',
-  TRANSFER_APPROVED: 'transfer.approved',
-  TRANSFER_REJECTED: 'transfer.rejected',
-  INVENTORY_UPDATED: 'inventory.updated'
+  TRANSFER_REQUESTED: "transfer.requested",
+  TRANSFER_RECEIVED: "transfer.received",
+  TRANSFER_APPROVED: "transfer.approved",
+  TRANSFER_REJECTED: "transfer.rejected",
+  INVENTORY_UPDATED: "inventory.updated",
 };
 
 let producerPromise;
@@ -37,27 +37,33 @@ let consumerStarted = false;
 let consumerStarting = false;
 let consumerRetryTimer;
 
-const KAFKA_CONSUMER_RETRY_MS = Number(process.env.KAFKA_CONSUMER_RETRY_MS || 5000);
-const KAFKA_CONSUMER_MAX_RETRY_MS = Number(process.env.KAFKA_CONSUMER_MAX_RETRY_MS || 30000);
-const KAFKA_FROM_BEGINNING = (process.env.KAFKA_FROM_BEGINNING || 'true') !== 'false';
+const KAFKA_CONSUMER_RETRY_MS = Number(
+  process.env.KAFKA_CONSUMER_RETRY_MS || 5000,
+);
+const KAFKA_CONSUMER_MAX_RETRY_MS = Number(
+  process.env.KAFKA_CONSUMER_MAX_RETRY_MS || 30000,
+);
+const KAFKA_FROM_BEGINNING =
+  (process.env.KAFKA_FROM_BEGINNING || "true") !== "false";
 
 const kafkaDisponible = () => Boolean(Kafka);
 
 const crearKafka = () => {
   if (!Kafka) {
-    throw new Error('kafkajs no esta instalado. Ejecuta: npm install');
+    throw new Error("kafkajs no esta instalado. Ejecuta: npm install");
   }
 
   return new Kafka({
     clientId: `foodbank-${BANCO_ID}`,
-    brokers: KAFKA_BROKERS
+    brokers: KAFKA_BROKERS,
   });
 };
 
 const getProducer = async () => {
   if (!producerPromise) {
     const producer = crearKafka().producer();
-    producerPromise = producer.connect()
+    producerPromise = producer
+      .connect()
       .then(() => producer)
       .catch((error) => {
         producerPromise = null;
@@ -72,10 +78,12 @@ const publicarEventoKafka = async (topic, payload, key) => {
   const producer = await getProducer();
   await producer.send({
     topic,
-    messages: [{
-      key: key || payload.transferencia_id || payload.evento_id || BANCO_ID,
-      value: JSON.stringify(payload)
-    }]
+    messages: [
+      {
+        key: key || payload.transferencia_id || payload.evento_id || BANCO_ID,
+        value: JSON.stringify(payload),
+      },
+    ],
   });
 };
 
@@ -88,7 +96,7 @@ const publicarEventosPendientes = async (limite = 20) => {
      WHERE estado IN ('pendiente', 'fallido')
      ORDER BY created_at ASC
      LIMIT ?`,
-    [limite]
+    [limite],
   );
 
   const resultados = [];
@@ -96,32 +104,45 @@ const publicarEventosPendientes = async (limite = 20) => {
   for (const evento of eventos) {
     try {
       const payload = parsearPayload(evento.payload);
-      await publicarEventoKafka(evento.topic || evento.tipo, {
-        evento_id: evento.evento_id,
-        tipo: evento.tipo,
-        origen: evento.origen,
-        destino: evento.destino,
-        payload,
-        created_at: evento.created_at
-      }, evento.evento_id);
+      await publicarEventoKafka(
+        evento.topic || evento.tipo,
+        {
+          evento_id: evento.evento_id,
+          tipo: evento.tipo,
+          origen: evento.origen,
+          destino: evento.destino,
+          payload,
+          created_at: evento.created_at,
+        },
+        evento.evento_id,
+      );
 
       await db.query(
         `UPDATE sync_events
          SET estado = ?, intentos = intentos + 1, ultimo_error = NULL
          WHERE evento_id = ?`,
-        ['enviado', evento.evento_id]
+        ["enviado", evento.evento_id],
       );
 
-      resultados.push({ evento_id: evento.evento_id, topic: evento.topic, estado: 'enviado' });
+      resultados.push({
+        evento_id: evento.evento_id,
+        topic: evento.topic,
+        estado: "enviado",
+      });
     } catch (error) {
       await db.query(
         `UPDATE sync_events
          SET estado = ?, intentos = intentos + 1, ultimo_error = ?
          WHERE evento_id = ?`,
-        ['fallido', error.message, evento.evento_id]
+        ["fallido", error.message, evento.evento_id],
       );
 
-      resultados.push({ evento_id: evento.evento_id, topic: evento.topic, estado: 'fallido', error: error.message });
+      resultados.push({
+        evento_id: evento.evento_id,
+        topic: evento.topic,
+        estado: "fallido",
+        error: error.message,
+      });
     }
   }
 
@@ -135,7 +156,7 @@ const buscarProductoPorNombreNormalizado = async (conn, nombre) => {
      WHERE LOWER(REPLACE(nombre, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
      LIMIT 1
      FOR UPDATE`,
-    [nombre]
+    [nombre],
   );
 
   return rows[0];
@@ -143,8 +164,8 @@ const buscarProductoPorNombreNormalizado = async (conn, nombre) => {
 
 const registrarEventoRecibido = async (conn, evento) => {
   const [recibido] = await conn.query(
-    'SELECT id FROM sync_events_recibidos WHERE evento_id = ? LIMIT 1 FOR UPDATE',
-    [evento.evento_id]
+    "SELECT id FROM sync_events_recibidos WHERE evento_id = ? LIMIT 1 FOR UPDATE",
+    [evento.evento_id],
   );
 
   if (recibido.length > 0) {
@@ -164,8 +185,8 @@ const registrarEventoRecibido = async (conn, evento) => {
       evento.tipo,
       evento.origen,
       JSON.stringify(evento.payload),
-      'recibido'
-    ]
+      "recibido",
+    ],
   );
 
   return true;
@@ -190,7 +211,7 @@ const manejarTransferRequested = async (message) => {
       evento_id: evento.evento_id,
       tipo: TOPICS.TRANSFER_REQUESTED,
       origen: payload.origen,
-      payload
+      payload,
     });
 
     if (!nuevo) {
@@ -198,12 +219,15 @@ const manejarTransferRequested = async (message) => {
       return;
     }
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(conn, payload.producto_nombre);
+    const productoExistente = await buscarProductoPorNombreNormalizado(
+      conn,
+      payload.producto_nombre,
+    );
 
     if (productoExistente) {
       await conn.query(
-        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
-        [payload.cantidad, productoExistente.id]
+        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+        [payload.cantidad, productoExistente.id],
       );
     } else {
       const unitValidada = unitParaCrear(payload.producto_unit);
@@ -212,8 +236,13 @@ const manejarTransferRequested = async (message) => {
       }
 
       await conn.query(
-        'INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)',
-        [payload.producto_nombre, payload.categoria_id, payload.cantidad, unitValidada.valor]
+        "INSERT INTO productos (nombre, categoria_id, cantidad, unit) VALUES (?, ?, ?, ?)",
+        [
+          payload.producto_nombre,
+          payload.categoria_id,
+          payload.cantidad,
+          unitValidada.valor,
+        ],
       );
     }
 
@@ -225,51 +254,51 @@ const manejarTransferRequested = async (message) => {
       cantidad: payload.cantidad,
       origen: payload.origen,
       destino: payload.destino,
-      estado: 'RECIBIDO_DESTINO',
-      evento_id: evento.evento_id
+      estado: "RECIBIDO_DESTINO",
+      evento_id: evento.evento_id,
     });
 
-    const recibidoEventoId = crearId('evt');
+    const recibidoEventoId = crearId("evt");
     await registrarEventoSync(conn, {
       evento_id: recibidoEventoId,
       topic: TOPICS.TRANSFER_RECEIVED,
-      tipo: 'TRANSFER_RECEIVED',
+      tipo: "TRANSFER_RECEIVED",
       origen: BANCO_ID,
       destino: payload.origen,
       payload: {
         ...payload,
         recibido_por: BANCO_ID,
         recibido_por_nombre: BANCO_NAME,
-        estado: 'RECIBIDO_DESTINO'
+        estado: "RECIBIDO_DESTINO",
       },
-      estado: 'pendiente'
+      estado: "pendiente",
     });
 
     await conn.query(
       `UPDATE sync_events_recibidos
        SET estado = ?, applied_at = CURRENT_TIMESTAMP
        WHERE evento_id = ?`,
-      ['aplicado', evento.evento_id]
+      ["aplicado", evento.evento_id],
     );
 
     await conn.commit();
     await publicarEventosPendientes(10);
 
     await enviarNotificacion({
-      tipo: 'TRANSFERENCIA_RECIBIDA',
+      tipo: "TRANSFERENCIA_RECIBIDA",
       mensaje: `Transferencia ${payload.transferencia_id} recibida en ${BANCO_NAME}`,
-      transferencia_id: payload.transferencia_id
+      transferencia_id: payload.transferencia_id,
     }).catch((error) => {
-      console.error('RabbitMQ no pudo enviar notificacion:', error.message);
+      console.error("RabbitMQ no pudo enviar notificacion:", error.message);
     });
   } catch (error) {
     if (conn) {
       await conn.rollback().catch((rollbackError) => {
-        console.error('Error al revertir evento Kafka:', rollbackError.message);
+        console.error("Error al revertir evento Kafka:", rollbackError.message);
       });
     }
 
-    console.error('Error al procesar transfer.requested:', error.message);
+    console.error("Error al procesar transfer.requested:", error.message);
     throw error;
   } finally {
     if (conn) conn.release();
@@ -289,7 +318,7 @@ const manejarTransferReceived = async (message) => {
     `UPDATE transferencias
      SET estado = ?, error = NULL
      WHERE transferencia_id = ?`,
-    ['COMPLETADO', payload.transferencia_id]
+    ["COMPLETADO", payload.transferencia_id],
   );
 };
 
@@ -297,45 +326,50 @@ const manejarTransferApproved = async (message) => {
   const evento = JSON.parse(message.value.toString());
   const payload = evento.payload || evento;
 
-  if (payload.origen !== BANCO_ID) return;
+  if (payload.destino !== BANCO_ID) return;
 
   let conn;
   try {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(conn, payload.producto_nombre);
+    const productoExistente = await buscarProductoPorNombreNormalizado(
+      conn,
+      payload.producto_nombre,
+    );
 
     if (productoExistente) {
       await conn.query(
-        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
-        [payload.cantidad, productoExistente.id]
+        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+        [payload.cantidad, productoExistente.id],
       );
     } else {
       await conn.query(
-        'INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)',
-        [payload.producto_nombre, payload.categoria_id, payload.cantidad]
+        "INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)",
+        [payload.producto_nombre, payload.categoria_id, payload.cantidad],
       );
     }
 
     await conn.query(
-      'UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?',
-      ['COMPLETADO', 'aceptado', payload.transferencia_id]
+      "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
+      ["COMPLETADO", "aceptado", payload.transferencia_id],
     );
 
     await conn.commit();
-    console.log(`Transferencia ${payload.transferencia_id} aprobada y completada`);
+    console.log(
+      `Transferencia ${payload.transferencia_id} aprobada y completada`,
+    );
 
     await enviarNotificacion({
-      tipo: 'TRANSFERENCIA_APROBADA',
+      tipo: "TRANSFERENCIA_APROBADA",
       mensaje: `Transferencia ${payload.transferencia_id} aprobada por ${payload.destino}`,
-      transferencia_id: payload.transferencia_id
+      transferencia_id: payload.transferencia_id,
     }).catch((error) => {
-      console.error('RabbitMQ no pudo enviar notificacion:', error.message);
+      console.error("RabbitMQ no pudo enviar notificacion:", error.message);
     });
   } catch (error) {
     if (conn) await conn.rollback().catch(() => {});
-    console.error('Error al procesar transfer.approved:', error.message);
+    console.error("Error al procesar transfer.approved:", error.message);
   } finally {
     if (conn) conn.release();
   }
@@ -350,38 +384,40 @@ const manejarTransferRejected = async (message) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    if (payload.destino === BANCO_ID) {
+    if (payload.origen === BANCO_ID) {
       await conn.query(
-        'UPDATE productos SET cantidad = cantidad + ? WHERE id = ?',
-        [payload.cantidad, payload.producto_id]
+        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+        [payload.cantidad, payload.producto_id],
       );
       await conn.query(
-        'UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?',
-        ['RECHAZADO', 'denegado', payload.motivo, payload.transferencia_id]
+        "UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?",
+        ["RECHAZADO", "denegado", payload.motivo, payload.transferencia_id],
       );
       console.log(`Stock devuelto por rechazo: ${payload.transferencia_id}`);
     }
 
-    if (payload.origen === BANCO_ID) {
+    if (payload.destino === BANCO_ID) {
       await conn.query(
-        'UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?',
-        ['RECHAZADO', 'denegado', payload.motivo, payload.transferencia_id]
+        "UPDATE transferencias SET estado = ?, aprobacion = ?, error = ? WHERE transferencia_id = ?",
+        ["RECHAZADO", "denegado", payload.motivo, payload.transferencia_id],
       );
-      console.log(`Transferencia rechazada en origen: ${payload.transferencia_id}`);
+      console.log(
+        `Transferencia rechazada en destino: ${payload.transferencia_id}`,
+      );
     }
 
     await conn.commit();
 
     await enviarNotificacion({
-      tipo: 'TRANSFERENCIA_RECHAZADA',
+      tipo: "TRANSFERENCIA_RECHAZADA",
       mensaje: `Transferencia ${payload.transferencia_id} rechazada: ${payload.motivo}`,
-      transferencia_id: payload.transferencia_id
+      transferencia_id: payload.transferencia_id,
     }).catch((error) => {
-      console.error('RabbitMQ no pudo enviar notificacion:', error.message);
+      console.error("RabbitMQ no pudo enviar notificacion:", error.message);
     });
   } catch (error) {
     if (conn) await conn.rollback().catch(() => {});
-    console.error('Error al procesar transfer.rejected:', error.message);
+    console.error("Error al procesar transfer.rejected:", error.message);
   } finally {
     if (conn) conn.release();
   }
@@ -393,10 +429,22 @@ const conectarConsumidorKafka = async () => {
 
   try {
     await consumer.connect();
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_REQUESTED, fromBeginning: KAFKA_FROM_BEGINNING });
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_RECEIVED, fromBeginning: KAFKA_FROM_BEGINNING });
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_APPROVED, fromBeginning: KAFKA_FROM_BEGINNING });
-    await consumer.subscribe({ topic: TOPICS.TRANSFER_REJECTED, fromBeginning: KAFKA_FROM_BEGINNING });
+    await consumer.subscribe({
+      topic: TOPICS.TRANSFER_REQUESTED,
+      fromBeginning: KAFKA_FROM_BEGINNING,
+    });
+    await consumer.subscribe({
+      topic: TOPICS.TRANSFER_RECEIVED,
+      fromBeginning: KAFKA_FROM_BEGINNING,
+    });
+    await consumer.subscribe({
+      topic: TOPICS.TRANSFER_APPROVED,
+      fromBeginning: KAFKA_FROM_BEGINNING,
+    });
+    await consumer.subscribe({
+      topic: TOPICS.TRANSFER_REJECTED,
+      fromBeginning: KAFKA_FROM_BEGINNING,
+    });
 
     await consumer.run({
       eachMessage: async ({ topic, message }) => {
@@ -411,11 +459,11 @@ const conectarConsumidorKafka = async () => {
         if (topic === TOPICS.TRANSFER_APPROVED) {
           await manejarTransferApproved(message);
         }
-    
+
         if (topic === TOPICS.TRANSFER_REJECTED) {
           await manejarTransferRejected(message);
         }
-      }
+      },
     });
 
     consumerStarted = true;
@@ -431,32 +479,39 @@ const programarReintentoConsumidor = (intento = 1) => {
     return;
   }
 
-  const delay = Math.min(KAFKA_CONSUMER_RETRY_MS * intento, KAFKA_CONSUMER_MAX_RETRY_MS);
+  const delay = Math.min(
+    KAFKA_CONSUMER_RETRY_MS * intento,
+    KAFKA_CONSUMER_MAX_RETRY_MS,
+  );
 
   consumerRetryTimer = setTimeout(async () => {
     consumerRetryTimer = null;
 
     try {
       await conectarConsumidorKafka();
-      console.log(`Kafka consumidor conectado despues de ${intento} reintento(s): ${KAFKA_BROKERS.join(', ')}`);
+      console.log(
+        `Kafka consumidor conectado despues de ${intento} reintento(s): ${KAFKA_BROKERS.join(", ")}`,
+      );
     } catch (error) {
-      console.error(`Kafka consumidor no disponible, reintentando en ${delay}ms: ${error.message}`);
+      console.error(
+        `Kafka consumidor no disponible, reintentando en ${delay}ms: ${error.message}`,
+      );
       programarReintentoConsumidor(intento + 1);
     }
   }, delay);
 };
 
 const iniciarConsumidorKafka = async () => {
-  if ((process.env.SYNC_DRIVER || 'kafka') !== 'kafka') {
-    return { iniciado: false, motivo: 'Kafka deshabilitado' };
+  if ((process.env.SYNC_DRIVER || "kafka") !== "kafka") {
+    return { iniciado: false, motivo: "Kafka deshabilitado" };
   }
 
   if (consumerStarted) {
-    return { iniciado: false, motivo: 'Kafka ya iniciado' };
+    return { iniciado: false, motivo: "Kafka ya iniciado" };
   }
 
   if (consumerStarting || consumerRetryTimer) {
-    return { iniciado: false, motivo: 'Kafka ya esta intentando conectar' };
+    return { iniciado: false, motivo: "Kafka ya esta intentando conectar" };
   }
 
   consumerStarting = true;
@@ -465,14 +520,16 @@ const iniciarConsumidorKafka = async () => {
     await conectarConsumidorKafka();
     return { iniciado: true, brokers: KAFKA_BROKERS };
   } catch (error) {
-    console.error(`Kafka consumidor no disponible al iniciar: ${error.message}`);
+    console.error(
+      `Kafka consumidor no disponible al iniciar: ${error.message}`,
+    );
     programarReintentoConsumidor();
 
     return {
       iniciado: false,
-      motivo: 'Kafka no disponible; reintentos programados',
+      motivo: "Kafka no disponible; reintentos programados",
       error: error.message,
-      brokers: KAFKA_BROKERS
+      brokers: KAFKA_BROKERS,
     };
   } finally {
     consumerStarting = false;
@@ -484,5 +541,5 @@ module.exports = {
   kafkaDisponible,
   publicarEventoKafka,
   publicarEventosPendientes,
-  iniciarConsumidorKafka
+  iniciarConsumidorKafka,
 };
