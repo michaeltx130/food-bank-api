@@ -19,9 +19,10 @@ const crearCrud = (client, modelName, config = {}) => {
       try {
         const data = await client[modelName].findUnique({
           where: { id: Number(req.params.id) },
-          ...queryOptions
+          ...queryOptions,
         });
-        if (!data) return res.status(404).json({ error: `${label} no encontrado` });
+        if (!data)
+          return res.status(404).json({ error: `${label} no encontrado` });
         res.json(data);
       } catch (error) {
         res.status(500).json({ error: `Error al obtener ${label}` });
@@ -32,8 +33,13 @@ const crearCrud = (client, modelName, config = {}) => {
       try {
         const data = await client[modelName].create({
           data: buildData(req.body),
-          ...queryOptions
+          ...queryOptions,
         });
+
+        if (config.onAfterCreate) {
+          await config.onAfterCreate(client, data, req.body);
+        }
+
         res.status(201).json(data);
       } catch (error) {
         res.status(500).json({ error: `Error al crear ${label}` });
@@ -45,7 +51,7 @@ const crearCrud = (client, modelName, config = {}) => {
         const data = await client[modelName].update({
           where: { id: Number(req.params.id) },
           data: buildData(req.body),
-          ...queryOptions
+          ...queryOptions,
         });
         res.json(data);
       } catch (error) {
@@ -55,7 +61,9 @@ const crearCrud = (client, modelName, config = {}) => {
 
     delete: async (req, res) => {
       try {
-        await client[modelName].delete({ where: { id: Number(req.params.id) } });
+        await client[modelName].delete({
+          where: { id: Number(req.params.id) },
+        });
         res.json({ message: `${label} eliminado` });
       } catch (error) {
         res.status(500).json({ error: `Error al eliminar ${label}` });
@@ -65,9 +73,9 @@ const crearCrud = (client, modelName, config = {}) => {
     getPendientes: async (req, res) => {
       try {
         const data = await client[modelName].findMany({
-          where: { aprobacion: 'en_espera' },
+          where: { aprobacion: "en_espera" },
           ...queryOptions,
-          orderBy: { created_at: 'desc' }
+          orderBy: { created_at: "desc" },
         });
         res.json(data);
       } catch (error) {
@@ -79,20 +87,28 @@ const crearCrud = (client, modelName, config = {}) => {
       try {
         const { id } = req.params;
         const transferencia = await client[modelName].findUnique({
-          where: { transferencia_id: id }
+          where: { transferencia_id: id },
         });
 
-        if (!transferencia) return res.status(404).json({ error: `${label} no encontrado` });
-        if (transferencia.aprobacion !== 'en_espera') {
-          return res.status(400).json({ error: `No se puede aprobar, estado actual: ${transferencia.aprobacion}` });
+        if (!transferencia)
+          return res.status(404).json({ error: `${label} no encontrado` });
+        if (transferencia.aprobacion !== "en_espera") {
+          return res
+            .status(400)
+            .json({
+              error: `No se puede aprobar, estado actual: ${transferencia.aprobacion}`,
+            });
         }
 
         const data = await client[modelName].update({
           where: { transferencia_id: id },
-          data: { aprobacion: 'aceptado' }
+          data: { aprobacion: "aceptado" },
         });
 
-        const { publicarEventoKafka, TOPICS } = require('../events/kafka/kafka.service');
+        const {
+          publicarEventoKafka,
+          TOPICS,
+        } = require("../events/kafka/kafka.service");
         await publicarEventoKafka(TOPICS.TRANSFER_APPROVED, {
           transferencia_id: transferencia.transferencia_id,
           producto_id: transferencia.producto_id,
@@ -101,7 +117,7 @@ const crearCrud = (client, modelName, config = {}) => {
           cantidad: transferencia.cantidad,
           origen: transferencia.origen,
           destino: transferencia.destino,
-          estado: 'APROBADO'
+          estado: "APROBADO",
         });
 
         res.json({ mensaje: `${label} aprobada`, data });
@@ -115,20 +131,31 @@ const crearCrud = (client, modelName, config = {}) => {
         const { id } = req.params;
         const { motivo } = req.body;
         const transferencia = await client[modelName].findUnique({
-          where: { transferencia_id: id }
+          where: { transferencia_id: id },
         });
 
-        if (!transferencia) return res.status(404).json({ error: `${label} no encontrado` });
-        if (transferencia.aprobacion !== 'en_espera') {
-          return res.status(400).json({ error: `No se puede rechazar, estado actual: ${transferencia.aprobacion}` });
+        if (!transferencia)
+          return res.status(404).json({ error: `${label} no encontrado` });
+        if (transferencia.aprobacion !== "en_espera") {
+          return res
+            .status(400)
+            .json({
+              error: `No se puede rechazar, estado actual: ${transferencia.aprobacion}`,
+            });
         }
 
         const data = await client[modelName].update({
           where: { transferencia_id: id },
-          data: { aprobacion: 'denegado', error: motivo || 'Rechazado por el nodo destino' }
+          data: {
+            aprobacion: "denegado",
+            error: motivo || "Rechazado por el nodo destino",
+          },
         });
 
-        const { publicarEventoKafka, TOPICS } = require('../events/kafka/kafka.service');
+        const {
+          publicarEventoKafka,
+          TOPICS,
+        } = require("../events/kafka/kafka.service");
         await publicarEventoKafka(TOPICS.TRANSFER_REJECTED, {
           transferencia_id: transferencia.transferencia_id,
           producto_id: transferencia.producto_id,
@@ -136,15 +163,15 @@ const crearCrud = (client, modelName, config = {}) => {
           cantidad: transferencia.cantidad,
           origen: transferencia.origen,
           destino: transferencia.destino,
-          motivo: motivo || 'Rechazado por el nodo destino',
-          estado: 'RECHAZADO'
+          motivo: motivo || "Rechazado por el nodo destino",
+          estado: "RECHAZADO",
         });
 
         res.json({ mensaje: `${label} rechazada`, data });
       } catch (error) {
         res.status(500).json({ error: `Error al rechazar ${label}` });
       }
-    }
+    },
   };
 };
 
@@ -153,13 +180,13 @@ const datosDonante = ({ nombre, telefono }) => ({ nombre, telefono });
 const datosDonacion = ({ donante, producto_id, cantidad }) => ({
   donante,
   producto_id,
-  cantidad
+  cantidad,
 });
 
 const datosMovimiento = ({ producto_id, tipo, cantidad }) => ({
   producto_id,
   tipo,
-  cantidad
+  cantidad,
 });
 
 const datosTransferencia = ({
@@ -172,7 +199,7 @@ const datosTransferencia = ({
   destino,
   estado,
   evento_id,
-  error
+  error,
 }) => ({
   transferencia_id,
   producto_id,
@@ -183,7 +210,7 @@ const datosTransferencia = ({
   destino,
   estado,
   evento_id,
-  error
+  error,
 });
 
 module.exports = {
@@ -191,5 +218,5 @@ module.exports = {
   datosDonacion,
   datosDonante,
   datosMovimiento,
-  datosTransferencia
+  datosTransferencia,
 };

@@ -225,6 +225,14 @@ const entregas = {
       const data = await loreto.entregas.create({
         data: { beneficiario_id, producto_id, cantidad }
       });
+
+      if (producto_id && cantidad) {
+        await loreto.productos.update({
+          where: { id: producto_id },
+          data: { cantidad: { decrement: cantidad } },
+        });
+      }
+
       res.status(201).json(data);
     } catch (error) {
       res.status(500).json({ error: 'Error al crear entrega' });

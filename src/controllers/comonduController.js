@@ -1,17 +1,17 @@
-const { comondu } = require('../config/prisma');
-const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
+const { comondu } = require("../config/prisma");
+const { unitParaCrear, unitParaActualizar } = require("../utils/productUnit");
 const {
   crearCrud,
   datosDonacion,
-  datosTransferencia
-} = require('../utils/crudController');
+  datosTransferencia,
+} = require("../utils/crudController");
 const {
   actualizarFamiliaConBeneficiario,
   beneficiarioInclude,
   crearFamiliaConBeneficiario,
   familiaInclude,
-  normalizarFamiliaPayload
-} = require('../utils/familiaPayload');
+  normalizarFamiliaPayload,
+} = require("../utils/familiaPayload");
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -20,11 +20,11 @@ const categorias = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.categorias.findMany({
-        include: { productos: true }
+        include: { productos: true },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener categorias' });
+      res.status(500).json({ error: "Error al obtener categorias" });
     }
   },
 
@@ -32,12 +32,13 @@ const categorias = {
     try {
       const data = await comondu.categorias.findUnique({
         where: { id: Number(req.params.id) },
-        include: { productos: true }
+        include: { productos: true },
       });
-      if (!data) return res.status(404).json({ error: 'Categoria no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Categoria no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener categoria' });
+      res.status(500).json({ error: "Error al obtener categoria" });
     }
   },
 
@@ -47,7 +48,7 @@ const categorias = {
       const data = await comondu.categorias.create({ data: { nombre } });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear categoria' });
+      res.status(500).json({ error: "Error al crear categoria" });
     }
   },
 
@@ -56,22 +57,22 @@ const categorias = {
       const { nombre } = req.body;
       const data = await comondu.categorias.update({
         where: { id: Number(req.params.id) },
-        data: { nombre }
+        data: { nombre },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar categoria' });
+      res.status(500).json({ error: "Error al actualizar categoria" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await comondu.categorias.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Categoria eliminada' });
+      res.json({ message: "Categoria eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar categoria' });
+      res.status(500).json({ error: "Error al eliminar categoria" });
     }
-  }
+  },
 };
 
 // ─────────────────────────────────────────
@@ -83,29 +84,32 @@ const donantes = {
       const data = await comondu.donantes.findMany();
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener donantes' });
+      res.status(500).json({ error: "Error al obtener donantes" });
     }
   },
 
   getById: async (req, res) => {
     try {
       const data = await comondu.donantes.findUnique({
-        where: { id: Number(req.params.id) }
+        where: { id: Number(req.params.id) },
       });
-      if (!data) return res.status(404).json({ error: 'Donante no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Donante no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener donante' });
+      res.status(500).json({ error: "Error al obtener donante" });
     }
   },
 
   create: async (req, res) => {
     try {
       const { nombre, telefono } = req.body;
-      const data = await comondu.donantes.create({ data: { nombre, telefono } });
+      const data = await comondu.donantes.create({
+        data: { nombre, telefono },
+      });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear donante' });
+      res.status(500).json({ error: "Error al crear donante" });
     }
   },
 
@@ -114,22 +118,22 @@ const donantes = {
       const { nombre, telefono } = req.body;
       const data = await comondu.donantes.update({
         where: { id: Number(req.params.id) },
-        data: { nombre, telefono }
+        data: { nombre, telefono },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar donante' });
+      res.status(500).json({ error: "Error al actualizar donante" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await comondu.donantes.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Donante eliminado' });
+      res.json({ message: "Donante eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar donante' });
+      res.status(500).json({ error: "Error al eliminar donante" });
     }
-  }
+  },
 };
 
 // ─────────────────────────────────────────
@@ -141,7 +145,7 @@ const familias = {
       const data = await comondu.familias.findMany({ include: familiaInclude });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener familias' });
+      res.status(500).json({ error: "Error al obtener familias" });
     }
   },
 
@@ -149,58 +153,65 @@ const familias = {
     try {
       const data = await comondu.familias.findUnique({
         where: { id: Number(req.params.id) },
-        include: familiaInclude
+        include: familiaInclude,
       });
-      if (!data) return res.status(404).json({ error: 'Familia no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Familia no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener familia' });
+      res.status(500).json({ error: "Error al obtener familia" });
     }
   },
 
   create: async (req, res) => {
     try {
       const familia = normalizarFamiliaPayload(req.body);
-      if (!familia.valido) return res.status(400).json({ error: familia.error });
+      if (!familia.valido)
+        return res.status(400).json({ error: familia.error });
 
       const data = await crearFamiliaConBeneficiario(comondu, familia);
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear familia' });
+      res.status(500).json({ error: "Error al crear familia" });
     }
   },
 
   update: async (req, res) => {
     try {
       const familia = normalizarFamiliaPayload(req.body);
-      if (!familia.valido) return res.status(400).json({ error: familia.error });
+      if (!familia.valido)
+        return res.status(400).json({ error: familia.error });
 
-      const data = await actualizarFamiliaConBeneficiario(comondu, Number(req.params.id), familia);
+      const data = await actualizarFamiliaConBeneficiario(
+        comondu,
+        Number(req.params.id),
+        familia,
+      );
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar familia' });
+      res.status(500).json({ error: "Error al actualizar familia" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await comondu.familias.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Familia eliminada' });
+      res.json({ message: "Familia eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar familia' });
+      res.status(500).json({ error: "Error al eliminar familia" });
     }
-  }
+  },
 };
 
 const beneficiarios = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.beneficiarios.findMany({
-        include: beneficiarioInclude
+        include: beneficiarioInclude,
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener beneficiarios' });
+      res.status(500).json({ error: "Error al obtener beneficiarios" });
     }
   },
 
@@ -208,12 +219,13 @@ const beneficiarios = {
     try {
       const data = await comondu.beneficiarios.findUnique({
         where: { id: Number(req.params.id) },
-        include: beneficiarioInclude
+        include: beneficiarioInclude,
       });
-      if (!data) return res.status(404).json({ error: 'Beneficiario no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Beneficiario no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener beneficiario' });
+      res.status(500).json({ error: "Error al obtener beneficiario" });
     }
   },
 
@@ -223,7 +235,7 @@ const beneficiarios = {
       const data = await comondu.beneficiarios.create({ data: { nombre } });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear beneficiario' });
+      res.status(500).json({ error: "Error al crear beneficiario" });
     }
   },
 
@@ -232,33 +244,35 @@ const beneficiarios = {
       const { nombre } = req.body;
       const data = await comondu.beneficiarios.update({
         where: { id: Number(req.params.id) },
-        data: { nombre }
+        data: { nombre },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar beneficiario' });
+      res.status(500).json({ error: "Error al actualizar beneficiario" });
     }
   },
 
   delete: async (req, res) => {
     try {
-      await comondu.beneficiarios.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Beneficiario eliminado' });
+      await comondu.beneficiarios.delete({
+        where: { id: Number(req.params.id) },
+      });
+      res.json({ message: "Beneficiario eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar beneficiario' });
+      res.status(500).json({ error: "Error al eliminar beneficiario" });
     }
-  }
+  },
 };
 
 const entregas = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.entregas.findMany({
-        include: { beneficiario: true, producto: true }
+        include: { beneficiario: true, producto: true },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener entregas' });
+      res.status(500).json({ error: "Error al obtener entregas" });
     }
   },
 
@@ -266,12 +280,13 @@ const entregas = {
     try {
       const data = await comondu.entregas.findUnique({
         where: { id: Number(req.params.id) },
-        include: { beneficiario: true, producto: true }
+        include: { beneficiario: true, producto: true },
       });
-      if (!data) return res.status(404).json({ error: 'Entrega no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Entrega no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener entrega' });
+      res.status(500).json({ error: "Error al obtener entrega" });
     }
   },
 
@@ -279,11 +294,19 @@ const entregas = {
     try {
       const { beneficiario_id, producto_id, cantidad } = req.body;
       const data = await comondu.entregas.create({
-        data: { beneficiario_id, producto_id, cantidad }
+        data: { beneficiario_id, producto_id, cantidad },
       });
+
+      if (producto_id && cantidad) {
+        await comondu.productos.update({
+          where: { id: producto_id },
+          data: { cantidad: { decrement: cantidad } },
+        });
+      }
+
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear entrega' });
+      res.status(500).json({ error: "Error al crear entrega" });
     }
   },
 
@@ -292,33 +315,33 @@ const entregas = {
       const { beneficiario_id, producto_id, cantidad } = req.body;
       const data = await comondu.entregas.update({
         where: { id: Number(req.params.id) },
-        data: { beneficiario_id, producto_id, cantidad }
+        data: { beneficiario_id, producto_id, cantidad },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar entrega' });
+      res.status(500).json({ error: "Error al actualizar entrega" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await comondu.entregas.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Entrega eliminada' });
+      res.json({ message: "Entrega eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar entrega' });
+      res.status(500).json({ error: "Error al eliminar entrega" });
     }
-  }
+  },
 };
 
 const movimientos = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.movimientos.findMany({
-        include: { producto: true }
+        include: { producto: true },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener movimientos' });
+      res.status(500).json({ error: "Error al obtener movimientos" });
     }
   },
 
@@ -326,12 +349,13 @@ const movimientos = {
     try {
       const data = await comondu.movimientos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { producto: true }
+        include: { producto: true },
       });
-      if (!data) return res.status(404).json({ error: 'Movimiento no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Movimiento no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener movimiento' });
+      res.status(500).json({ error: "Error al obtener movimiento" });
     }
   },
 
@@ -339,11 +363,11 @@ const movimientos = {
     try {
       const { producto_id, tipo, cantidad } = req.body;
       const data = await comondu.movimientos.create({
-        data: { producto_id, tipo, cantidad }
+        data: { producto_id, tipo, cantidad },
       });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear movimiento' });
+      res.status(500).json({ error: "Error al crear movimiento" });
     }
   },
 
@@ -352,22 +376,24 @@ const movimientos = {
       const { producto_id, tipo, cantidad } = req.body;
       const data = await comondu.movimientos.update({
         where: { id: Number(req.params.id) },
-        data: { producto_id, tipo, cantidad }
+        data: { producto_id, tipo, cantidad },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar movimiento' });
+      res.status(500).json({ error: "Error al actualizar movimiento" });
     }
   },
 
   delete: async (req, res) => {
     try {
-      await comondu.movimientos.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Movimiento eliminado' });
+      await comondu.movimientos.delete({
+        where: { id: Number(req.params.id) },
+      });
+      res.json({ message: "Movimiento eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar movimiento' });
+      res.status(500).json({ error: "Error al eliminar movimiento" });
     }
-  }
+  },
 };
 
 // ─────────────────────────────────────────
@@ -377,11 +403,17 @@ const productos = {
   getAll: async (req, res) => {
     try {
       const data = await comondu.productos.findMany({
-        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
+        include: {
+          categoria: true,
+          donaciones: true,
+          entregas: true,
+          movimientos: true,
+          transferencias: true,
+        },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener productos' });
+      res.status(500).json({ error: "Error al obtener productos" });
     }
   },
 
@@ -389,12 +421,19 @@ const productos = {
     try {
       const data = await comondu.productos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
+        include: {
+          categoria: true,
+          donaciones: true,
+          entregas: true,
+          movimientos: true,
+          transferencias: true,
+        },
       });
-      if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Producto no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener producto' });
+      res.status(500).json({ error: "Error al obtener producto" });
     }
   },
 
@@ -402,14 +441,15 @@ const productos = {
     try {
       const { nombre, categoria_id, cantidad, unit } = req.body;
       const unitValidada = unitParaCrear(unit);
-      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+      if (!unitValidada.valido)
+        return res.status(400).json({ error: unitValidada.error });
 
       const data = await comondu.productos.create({
-        data: { nombre, categoria_id, cantidad, unit: unitValidada.valor }
+        data: { nombre, categoria_id, cantidad, unit: unitValidada.valor },
       });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear producto' });
+      res.status(500).json({ error: "Error al crear producto" });
     }
   },
 
@@ -417,40 +457,42 @@ const productos = {
     try {
       const { nombre, categoria_id, cantidad, unit } = req.body;
       const unitValidada = unitParaActualizar(unit);
-      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+      if (!unitValidada.valido)
+        return res.status(400).json({ error: unitValidada.error });
       const productoData = { nombre, categoria_id, cantidad };
-      if (unitValidada.valor !== undefined) productoData.unit = unitValidada.valor;
+      if (unitValidada.valor !== undefined)
+        productoData.unit = unitValidada.valor;
 
       const data = await comondu.productos.update({
         where: { id: Number(req.params.id) },
-        data: productoData
+        data: productoData,
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar producto' });
+      res.status(500).json({ error: "Error al actualizar producto" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await comondu.productos.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Producto eliminado' });
+      res.json({ message: "Producto eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar producto' });
+      res.status(500).json({ error: "Error al eliminar producto" });
     }
-  }
+  },
 };
 
-const donaciones = crearCrud(comondu, 'donaciones', {
-  label: 'donacion',
+const donaciones = crearCrud(comondu, "donaciones", {
+  label: "donacion",
   include: { producto: true },
-  buildData: datosDonacion
+  buildData: datosDonacion,
 });
 
-const transferencias = crearCrud(comondu, 'transferencias', {
-  label: 'transferencia',
+const transferencias = crearCrud(comondu, "transferencias", {
+  label: "transferencia",
   include: { producto: true },
-  buildData: datosTransferencia
+  buildData: datosTransferencia,
 });
 
 module.exports = {
@@ -462,5 +504,5 @@ module.exports = {
   movimientos,
   productos,
   donaciones,
-  transferencias
+  transferencias,
 };
