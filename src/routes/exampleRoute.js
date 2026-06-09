@@ -683,19 +683,26 @@ router.post("/red/productos/apartar", async (req, res) => {
   }
 });
 
-router.get('/red/productos/replica', async (req, res) => {
+router.get("/red/productos/replica", async (req, res) => {
   try {
+    const { banco } = req.query;
+
     const [locales] = await db.query(
-      `SELECT id as id_producto, '${BANCO_ID}' as banco_origen, nombre, categoria_id, cantidad, unit FROM productos`
+      `SELECT id as id_producto, '${BANCO_ID}' as banco_origen, nombre, categoria_id, cantidad, unit FROM productos`,
     );
-    const [replicas] = await db.query(
-      'SELECT id_producto, banco_origen, nombre, categoria_id, cantidad, unit FROM productos_replica'
-    );
+
+    const replicaQuery = banco
+      ? "SELECT id_producto, banco_origen, nombre, categoria_id, cantidad, unit FROM productos_replica WHERE banco_origen = ?"
+      : "SELECT id_producto, banco_origen, nombre, categoria_id, cantidad, unit FROM productos_replica";
+
+    const [replicas] = banco
+      ? await db.query(replicaQuery, [banco])
+      : await db.query(replicaQuery);
 
     res.json({
       banco: BANCO_NAME,
       productos_locales: locales,
-      productos_red: replicas
+      productos_red: replicas,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
