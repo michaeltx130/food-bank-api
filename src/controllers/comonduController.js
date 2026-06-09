@@ -12,6 +12,10 @@ const {
   familiaInclude,
   normalizarFamiliaPayload,
 } = require("../utils/familiaPayload");
+const {
+  publicarEventoKafka,
+  TOPICS,
+} = require("../events/kafka/kafka.service");
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -447,6 +451,23 @@ const productos = {
       const data = await comondu.productos.create({
         data: { nombre, categoria_id, cantidad, unit: unitValidada.valor },
       });
+
+      // Ultimo cambio hecho, por si se rompe algo---------------------------------------------------------------------------------------------------
+
+      await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+        accion: "CREAR",
+        banco: process.env.BANCO_ID,
+        producto: {
+          id_producto: data.id,
+          nombre: data.nombre,
+          categoria_id: data.categoria_id,
+          cantidad: data.cantidad,
+          unit: data.unit,
+        },
+      }).catch((err) =>
+        console.error("Error al sincronizar replica:", err.message),
+      );
+
       res.status(201).json(data);
     } catch (error) {
       res.status(500).json({ error: "Error al crear producto" });
