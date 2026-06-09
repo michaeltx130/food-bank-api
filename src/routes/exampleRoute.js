@@ -456,20 +456,6 @@ router.post("/red/productos/enviar", async (req, res) => {
       ["DESCONTADO_ORIGEN", transferenciaId],
     );
 
-    await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
-      accion: "ACTUALIZAR",
-      banco: BANCO_ID,
-      producto: {
-        id_producto: productoId,
-        nombre: producto.nombre,
-        categoria_id: producto.categoria_id,
-        cantidad: producto.cantidad - cantidadNumero,
-        unit: producto.unit,
-      },
-    }).catch((err) =>
-      console.error("Error al sincronizar replica:", err.message),
-    );
-
     const payloadEvento = {
       transferencia_id: transferenciaId,
       producto_id: productoId,
@@ -496,6 +482,20 @@ router.post("/red/productos/enviar", async (req, res) => {
     });
 
     await conn.commit();
+
+    await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+      accion: "ACTUALIZAR",
+      banco: BANCO_ID,
+      producto: {
+        id_producto: productoId,
+        nombre: producto.nombre,
+        categoria_id: producto.categoria_id,
+        cantidad: producto.cantidad - cantidadNumero,
+        unit: producto.unit,
+      },
+    }).catch((err) =>
+      console.error("Error al sincronizar replica:", err.message),
+    );
 
     let eventosKafka = [];
     let advertenciaKafka;
