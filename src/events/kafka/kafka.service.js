@@ -346,19 +346,19 @@ const manejarTransferApproved = async (message) => {
     await conn.beginTransaction();
 
     //CORRECCIÓN: si yo soy el ORIGEN, descontar mi inventario al aprobar
-    if (payload.origen === BANCO_ID) {
-      await conn.query(
-        "UPDATE productos SET cantidad = cantidad - ? WHERE id = ?",
-        [payload.cantidad, payload.producto_id]
-      );
+    // if (payload.origen === BANCO_ID) {
+    //   await conn.query(
+    //     "UPDATE productos SET cantidad = cantidad - ? WHERE id = ?",
+    //     [payload.cantidad, payload.producto_id]
+    //   );
 
-      await conn.query(
-        "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
-        ["DESCONTADO_ORIGEN", "aceptado", payload.transferencia_id]
-      );
+    //   await conn.query(
+    //     "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
+    //     ["DESCONTADO_ORIGEN", "aceptado", payload.transferencia_id]
+    //   );
 
-      console.log(`Stock descontado en origen por aprobación: ${payload.transferencia_id}`);
-    }
+    //   console.log(`Stock descontado en origen por aprobación: ${payload.transferencia_id}`);
+    // }
 
     //sin cambios: si yo soy el DESTINO, sumar a mi inventario
     if (payload.destino === BANCO_ID) {
