@@ -340,47 +340,62 @@ const manejarTransferApproved = async (message) => {
   const evento = JSON.parse(message.value.toString());
   const payload = evento.payload || evento;
 
-  if (payload.destino !== BANCO_ID) return;
-
   let conn;
   try {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
-    const productoExistente = await buscarProductoPorNombreNormalizado(
-      conn,
-      payload.producto_nombre,
-    );
+    //CORRECCIÓN: si yo soy el ORIGEN, descontar mi inventario al aprobar
+    if (payload.origen === BANCO_ID) {
+      await conn.query(
+        "UPDATE productos SET cantidad = cantidad - ? WHERE id = ?",
+        [payload.cantidad, payload.producto_id]
+      );
 
-    if (productoExistente) {
       await conn.query(
-        "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
-        [payload.cantidad, productoExistente.id],
+        "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
+        ["DESCONTADO_ORIGEN", "aceptado", payload.transferencia_id]
       );
-    } else {
-      await conn.query(
-        "INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)",
-        [payload.producto_nombre, payload.categoria_id, payload.cantidad],
-      );
+
+      console.log(`Stock descontado en origen por aprobación: ${payload.transferencia_id}`);
     }
 
-    await conn.query(
-      "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
-      ["COMPLETADO", "aceptado", payload.transferencia_id],
-    );
+    //sin cambios: si yo soy el DESTINO, sumar a mi inventario
+    if (payload.destino === BANCO_ID) {
+      const productoExistente = await buscarProductoPorNombreNormalizado(
+        conn,
+        payload.producto_nombre,
+      );
+
+      if (productoExistente) {
+        await conn.query(
+          "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
+          [payload.cantidad, productoExistente.id]
+        );
+      } else {
+        await conn.query(
+          "INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)",
+          [payload.producto_nombre, payload.categoria_id, payload.cantidad]
+        );
+      }
+
+      await conn.query(
+        "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
+        ["COMPLETADO", "aceptado", payload.transferencia_id]
+      );
+
+      console.log(`Transferencia ${payload.transferencia_id} aprobada y completada en destino`);
+
+      await enviarNotificacion({
+        tipo: "TRANSFERENCIA_APROBADA",
+        mensaje: `Transferencia ${payload.transferencia_id} aprobada por ${payload.destino}`,
+        transferencia_id: payload.transferencia_id,
+      }).catch((error) => {
+        console.error("RabbitMQ no pudo enviar notificacion:", error.message);
+      });
+    }
 
     await conn.commit();
-    console.log(
-      `Transferencia ${payload.transferencia_id} aprobada y completada`,
-    );
-
-    await enviarNotificacion({
-      tipo: "TRANSFERENCIA_APROBADA",
-      mensaje: `Transferencia ${payload.transferencia_id} aprobada por ${payload.destino}`,
-      transferencia_id: payload.transferencia_id,
-    }).catch((error) => {
-      console.error("RabbitMQ no pudo enviar notificacion:", error.message);
-    });
   } catch (error) {
     if (conn) await conn.rollback().catch(() => {});
     console.error("Error al procesar transfer.approved:", error.message);
