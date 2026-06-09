@@ -30,6 +30,7 @@ const TOPICS = {
   TRANSFER_APPROVED: "transfer.approved",
   TRANSFER_REJECTED: "transfer.rejected",
   INVENTORY_UPDATED: "inventory.updated",
+  PRODUCTO_SYNC: "producto.sync",
 };
 
 let producerPromise;
@@ -370,21 +371,23 @@ const manejarTransferApproved = async (message) => {
       if (productoExistente) {
         await conn.query(
           "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?",
-          [payload.cantidad, productoExistente.id]
+          [payload.cantidad, productoExistente.id],
         );
       } else {
         await conn.query(
           "INSERT INTO productos (nombre, categoria_id, cantidad) VALUES (?, ?, ?)",
-          [payload.producto_nombre, payload.categoria_id, payload.cantidad]
+          [payload.producto_nombre, payload.categoria_id, payload.cantidad],
         );
       }
 
       await conn.query(
         "UPDATE transferencias SET estado = ?, aprobacion = ? WHERE transferencia_id = ?",
-        ["COMPLETADO", "aceptado", payload.transferencia_id]
+        ["COMPLETADO", "aceptado", payload.transferencia_id],
       );
 
-      console.log(`Transferencia ${payload.transferencia_id} aprobada y completada en destino`);
+      console.log(
+        `Transferencia ${payload.transferencia_id} aprobada y completada en destino`,
+      );
 
       await enviarNotificacion({
         tipo: "TRANSFERENCIA_APROBADA",
@@ -452,6 +455,61 @@ const manejarTransferRejected = async (message) => {
   }
 };
 
+const manejarProductoSync = async (message) => {
+  const evento = JSON.parse(message.value.toString());
+
+  if (evento.banco === BANCO_ID) return;
+
+  const { accion, banco, producto } = evento;
+
+  try {
+    if (accion === "CREAR" || accion === "ACTUALIZAR") {
+      const [existing] = await db.query(
+        "SELECT id FROM productos_replica WHERE id_producto = ? AND banco_origen = ?",
+        [producto.id_producto, banco],
+      );
+
+      if (existing.length > 0) {
+        await db.query(
+          `UPDATE productos_replica 
+           SET nombre = ?, categoria_id = ?, cantidad = ?, unit = ?, ultima_actualizacion = NOW()
+           WHERE id_producto = ? AND banco_origen = ?`,
+          [
+            producto.nombre,
+            producto.categoria_id,
+            producto.cantidad,
+            producto.unit,
+            producto.id_producto,
+            banco,
+          ],
+        );
+      } else {
+        await db.query(
+          `INSERT INTO productos_replica (id_producto, banco_origen, nombre, categoria_id, cantidad, unit)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            producto.id_producto,
+            banco,
+            producto.nombre,
+            producto.categoria_id,
+            producto.cantidad,
+            producto.unit,
+          ],
+        );
+      }
+    }
+
+    if (accion === "ELIMINAR") {
+      await db.query(
+        "DELETE FROM productos_replica WHERE id_producto = ? AND banco_origen = ?",
+        [producto.id_producto, banco],
+      );
+    }
+  } catch (error) {
+    console.error("Error al sincronizar replica:", error.message);
+  }
+};
+
 const conectarConsumidorKafka = async () => {
   const kafka = crearKafka();
   const consumer = kafka.consumer({ groupId: `foodbank-${BANCO_ID}` });
@@ -474,6 +532,10 @@ const conectarConsumidorKafka = async () => {
       topic: TOPICS.TRANSFER_REJECTED,
       fromBeginning: KAFKA_FROM_BEGINNING,
     });
+    await consumer.subscribe({
+      topic: TOPICS.PRODUCTO_SYNC,
+      fromBeginning: KAFKA_FROM_BEGINNING,
+    });
 
     await consumer.run({
       eachMessage: async ({ topic, message }) => {
@@ -491,6 +553,10 @@ const conectarConsumidorKafka = async () => {
 
         if (topic === TOPICS.TRANSFER_REJECTED) {
           await manejarTransferRejected(message);
+        }
+
+        if (topic === TOPICS.PRODUCTO_SYNC) {
+          await manejarProductoSync(message);
         }
       },
     });

@@ -18,6 +18,7 @@ const {
   TOPICS,
   kafkaDisponible,
   publicarEventosPendientes,
+  publicarEventoKafka,
 } = require("../events/kafka/kafka.service");
 const axios = require("axios");
 const { unitParaCrear } = require("../utils/productUnit");
@@ -106,13 +107,11 @@ router.get("/tabla/:nombre", async (req, res) => {
     const [rows] = await db.query(`SELECT * FROM ??`, [tabla]);
     res.json({ banco: process.env.BANCO_NAME, tabla, datos: rows });
   } catch (error) {
-    res
-      .status(404)
-      .json({
-        banco: process.env.BANCO_NAME,
-        tabla,
-        error: `Tabla no existe en este banco`,
-      });
+    res.status(404).json({
+      banco: process.env.BANCO_NAME,
+      tabla,
+      error: `Tabla no existe en este banco`,
+    });
   }
 });
 
@@ -132,11 +131,9 @@ router.post("/agregar_productos", async (req, res) => {
       !Number.isInteger(cantidadNumero) ||
       cantidadNumero <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Faltan campos validos: nombre, categoria_id, cantidad",
-        });
+      return res.status(400).json({
+        error: "Faltan campos validos: nombre, categoria_id, cantidad",
+      });
     }
 
     if (!unitValidada.valido) {
@@ -158,6 +155,20 @@ router.post("/agregar_productos", async (req, res) => {
       );
       await conn.commit();
 
+      await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+        accion: "ACTUALIZAR",
+        banco: BANCO_ID,
+        producto: {
+          id_producto: productoExistente.id,
+          nombre: productoExistente.nombre,
+          categoria_id: productoExistente.categoria_id,
+          cantidad: productoExistente.cantidad + cantidadNumero,
+          unit: productoExistente.unit,
+        },
+      }).catch((err) =>
+        console.error("Error al sincronizar replica:", err.message),
+      );
+
       return res.json({
         mensaje: "Cantidad actualizada",
         banco: process.env.BANCO_NAME,
@@ -178,6 +189,20 @@ router.post("/agregar_productos", async (req, res) => {
       [nombre, categoriaId, cantidadNumero, unitValidada.valor],
     );
     await conn.commit();
+
+    await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+      accion: "CREAR",
+      banco: BANCO_ID,
+      producto: {
+        id_producto: result.insertId,
+        nombre,
+        categoria_id: categoriaId,
+        cantidad: cantidadNumero,
+        unit: unitValidada.valor,
+      },
+    }).catch((err) =>
+      console.error("Error al sincronizar replica:", err.message),
+    );
 
     return res.status(201).json({
       mensaje: "Producto creado",
@@ -222,11 +247,9 @@ router.post("/recibir_productos", async (req, res) => {
       !Number.isInteger(cantidadNumero) ||
       cantidadNumero <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Faltan campos validos: nombre, categoria_id, cantidad",
-        });
+      return res.status(400).json({
+        error: "Faltan campos validos: nombre, categoria_id, cantidad",
+      });
     }
 
     if (!unitValidada.valido) {
@@ -248,6 +271,20 @@ router.post("/recibir_productos", async (req, res) => {
       );
       await conn.commit();
 
+      await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+        accion: "ACTUALIZAR",
+        banco: BANCO_ID,
+        producto: {
+          id_producto: productoExistente.id,
+          nombre: productoExistente.nombre,
+          categoria_id: productoExistente.categoria_id,
+          cantidad: productoExistente.cantidad + cantidadNumero,
+          unit: productoExistente.unit,
+        },
+      }).catch((err) =>
+        console.error("Error al sincronizar replica:", err.message),
+      );
+
       return res.json({
         mensaje: "Cantidad actualizada",
         producto: productoExistente.nombre,
@@ -261,6 +298,20 @@ router.post("/recibir_productos", async (req, res) => {
         [nombre, categoriaId, cantidadNumero, unitValidada.valor],
       );
       await conn.commit();
+
+      await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+        accion: "CREAR",
+        banco: BANCO_ID,
+        producto: {
+          id_producto: result.insertId,
+          nombre,
+          categoria_id: categoriaId,
+          cantidad: cantidadNumero,
+          unit: unitValidada.valor,
+        },
+      }).catch((err) =>
+        console.error("Error al sincronizar replica:", err.message),
+      );
 
       return res.json({
         mensaje: "Producto creado",
@@ -329,11 +380,9 @@ router.post("/red/productos/enviar", async (req, res) => {
       !Number.isInteger(cantidadNumero) ||
       cantidadNumero <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Faltan campos validos: destino, producto_id, cantidad",
-        });
+      return res.status(400).json({
+        error: "Faltan campos validos: destino, producto_id, cantidad",
+      });
     }
 
     const { NODOS_MAP } = require("../services/nodo.service");
@@ -510,11 +559,9 @@ router.post("/red/productos/solicitar", async (req, res) => {
       !Number.isInteger(cantidadNumero) ||
       cantidadNumero <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Faltan campos validos: origen, producto_nombre, cantidad",
-        });
+      return res.status(400).json({
+        error: "Faltan campos validos: origen, producto_nombre, cantidad",
+      });
     }
 
     const { NODOS_MAP } = require("../services/nodo.service");
@@ -568,11 +615,9 @@ router.post("/red/productos/apartar", async (req, res) => {
       !Number.isInteger(cantidadNumero) ||
       cantidadNumero <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Faltan campos validos: destino, producto_nombre, cantidad",
-        });
+      return res.status(400).json({
+        error: "Faltan campos validos: destino, producto_nombre, cantidad",
+      });
     }
 
     await asegurarInfraestructuraSync();
@@ -589,19 +634,15 @@ router.post("/red/productos/apartar", async (req, res) => {
     );
 
     if (!productoExistente) {
-      return res
-        .status(404)
-        .json({
-          error: `Producto '${producto_nombre}' no encontrado en este nodo`,
-        });
+      return res.status(404).json({
+        error: `Producto '${producto_nombre}' no encontrado en este nodo`,
+      });
     }
 
     if (productoExistente.cantidad < cantidadNumero) {
-      return res
-        .status(400)
-        .json({
-          error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}`,
-        });
+      return res.status(400).json({
+        error: `Stock insuficiente. Disponible: ${productoExistente.cantidad}`,
+      });
     }
 
     await conn.query(
@@ -639,6 +680,25 @@ router.post("/red/productos/apartar", async (req, res) => {
     res.status(500).json({ error: error.message });
   } finally {
     if (conn) conn.release();
+  }
+});
+
+router.get('/red/productos/replica', async (req, res) => {
+  try {
+    const [locales] = await db.query(
+      `SELECT id as id_producto, '${BANCO_ID}' as banco_origen, nombre, categoria_id, cantidad, unit FROM productos`
+    );
+    const [replicas] = await db.query(
+      'SELECT id_producto, banco_origen, nombre, categoria_id, cantidad, unit FROM productos_replica'
+    );
+
+    res.json({
+      banco: BANCO_NAME,
+      productos_locales: locales,
+      productos_red: replicas
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
