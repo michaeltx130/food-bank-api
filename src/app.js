@@ -23,6 +23,7 @@ app.get('/', (req, res) => {
       baseDatos: '/status/db',
       productos: `/api/${NODO_PREFIX}/productos`,
       categorias: `/api/${NODO_PREFIX}/categorias`,
+      notificaciones: '/api/notificaciones',
       estado_sync: '/api/sync/estado',
       publicar_eventos_kafka: '/api/sync/push'
     }
@@ -57,6 +58,7 @@ app.get('/status/db', async (req, res) => {
 });
 
 app.use('/api', require('./routes/exampleRoute'));
+app.use('/api/notificaciones', require('./routes/notificationRoutes'));
 app.use(`/api/${NODO_PREFIX}`, require(`./routes/${NODO_PREFIX}Routes`));
 // app.use('/api/comondu', require('./routes/comonduRoutes'));
 // app.use('/api/lapaz', require('./routes/lapazRoutes'));
@@ -67,7 +69,7 @@ app.use((req, res) => {
   res.status(404).json({
     error: 'Ruta no encontrada',
     ruta: req.originalUrl,
-    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos', '/api/sync/estado', '/api/sync/push']
+    endpoints: ['/', '/status', '/status/db', '/api/nodos/estado', '/api/productos', '/api/notificaciones', '/api/sync/estado', '/api/sync/push']
   });
 });
 
