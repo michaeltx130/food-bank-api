@@ -17,6 +17,10 @@
     "prisma:generate:mulege": "prisma generate --config=prisma.mulege.config.ts",
     "prisma:generate:all": "npm run prisma:generate:comondu && npm run prisma:generate:lapaz && npm run prisma:generate:loreto && npm run prisma:generate:mulege",
     "dev": "concurrently \"npm run start:comondu\" \"npm run start:lapaz\" \"npm run start:loreto\" \"npm run start:mulege\"",
+    "reset:db:comondu": "node --require dotenv/config scripts/reset-real-data.js dotenv_config_path=nodes/comondu.env --yes",
+    "reset:db:lapaz": "node --require dotenv/config scripts/reset-real-data.js dotenv_config_path=nodes/lapaz.env --yes",
+    "reset:db:loreto": "node --require dotenv/config scripts/reset-real-data.js dotenv_config_path=nodes/loreto.env --yes",
+    "reset:db:mulege": "node --require dotenv/config scripts/reset-real-data.js dotenv_config_path=nodes/mulege.env --yes",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
