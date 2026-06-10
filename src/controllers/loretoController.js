@@ -1,19 +1,23 @@
-const { loreto } = require('../config/prisma');
-const { unitParaCrear, unitParaActualizar } = require('../utils/productUnit');
+const { loreto } = require("../config/prisma");
+const { unitParaCrear, unitParaActualizar } = require("../utils/productUnit");
 const {
   crearCrud,
   datosDonacion,
   datosDonante,
   datosMovimiento,
-  datosTransferencia
-} = require('../utils/crudController');
+  datosTransferencia,
+} = require("../utils/crudController");
 const {
   actualizarFamiliaConBeneficiario,
   beneficiarioInclude,
   crearFamiliaConBeneficiario,
   familiaInclude,
-  normalizarFamiliaPayload
-} = require('../utils/familiaPayload');
+  normalizarFamiliaPayload,
+} = require("../utils/familiaPayload");
+const {
+  publicarEventoKafka,
+  TOPICS,
+} = require("../events/kafka/kafka.service");
 
 // ─────────────────────────────────────────
 //  CATEGORIAS
@@ -22,11 +26,11 @@ const categorias = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.categorias.findMany({
-        include: { productos: true }
+        include: { productos: true },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener categorias' });
+      res.status(500).json({ error: "Error al obtener categorias" });
     }
   },
 
@@ -34,12 +38,13 @@ const categorias = {
     try {
       const data = await loreto.categorias.findUnique({
         where: { id: Number(req.params.id) },
-        include: { productos: true }
+        include: { productos: true },
       });
-      if (!data) return res.status(404).json({ error: 'Categoria no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Categoria no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener categoria' });
+      res.status(500).json({ error: "Error al obtener categoria" });
     }
   },
 
@@ -49,7 +54,7 @@ const categorias = {
       const data = await loreto.categorias.create({ data: { nombre } });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear categoria' });
+      res.status(500).json({ error: "Error al crear categoria" });
     }
   },
 
@@ -58,22 +63,22 @@ const categorias = {
       const { nombre } = req.body;
       const data = await loreto.categorias.update({
         where: { id: Number(req.params.id) },
-        data: { nombre }
+        data: { nombre },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar categoria' });
+      res.status(500).json({ error: "Error al actualizar categoria" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await loreto.categorias.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Categoria eliminada' });
+      res.json({ message: "Categoria eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar categoria' });
+      res.status(500).json({ error: "Error al eliminar categoria" });
     }
-  }
+  },
 };
 
 // ─────────────────────────────────────────
@@ -83,11 +88,11 @@ const beneficiarios = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.beneficiarios.findMany({
-        include: beneficiarioInclude
+        include: beneficiarioInclude,
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener beneficiarios' });
+      res.status(500).json({ error: "Error al obtener beneficiarios" });
     }
   },
 
@@ -95,12 +100,13 @@ const beneficiarios = {
     try {
       const data = await loreto.beneficiarios.findUnique({
         where: { id: Number(req.params.id) },
-        include: beneficiarioInclude
+        include: beneficiarioInclude,
       });
-      if (!data) return res.status(404).json({ error: 'Beneficiario no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Beneficiario no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener beneficiario' });
+      res.status(500).json({ error: "Error al obtener beneficiario" });
     }
   },
 
@@ -110,7 +116,7 @@ const beneficiarios = {
       const data = await loreto.beneficiarios.create({ data: { nombre } });
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear beneficiario' });
+      res.status(500).json({ error: "Error al crear beneficiario" });
     }
   },
 
@@ -119,22 +125,24 @@ const beneficiarios = {
       const { nombre } = req.body;
       const data = await loreto.beneficiarios.update({
         where: { id: Number(req.params.id) },
-        data: { nombre }
+        data: { nombre },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar beneficiario' });
+      res.status(500).json({ error: "Error al actualizar beneficiario" });
     }
   },
 
   delete: async (req, res) => {
     try {
-      await loreto.beneficiarios.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Beneficiario eliminado' });
+      await loreto.beneficiarios.delete({
+        where: { id: Number(req.params.id) },
+      });
+      res.json({ message: "Beneficiario eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar beneficiario' });
+      res.status(500).json({ error: "Error al eliminar beneficiario" });
     }
-  }
+  },
 };
 
 const familias = {
@@ -143,7 +151,7 @@ const familias = {
       const data = await loreto.familias.findMany({ include: familiaInclude });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener familias' });
+      res.status(500).json({ error: "Error al obtener familias" });
     }
   },
 
@@ -151,58 +159,65 @@ const familias = {
     try {
       const data = await loreto.familias.findUnique({
         where: { id: Number(req.params.id) },
-        include: familiaInclude
+        include: familiaInclude,
       });
-      if (!data) return res.status(404).json({ error: 'Familia no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Familia no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener familia' });
+      res.status(500).json({ error: "Error al obtener familia" });
     }
   },
 
   create: async (req, res) => {
     try {
       const familia = normalizarFamiliaPayload(req.body);
-      if (!familia.valido) return res.status(400).json({ error: familia.error });
+      if (!familia.valido)
+        return res.status(400).json({ error: familia.error });
 
       const data = await crearFamiliaConBeneficiario(loreto, familia);
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear familia' });
+      res.status(500).json({ error: "Error al crear familia" });
     }
   },
 
   update: async (req, res) => {
     try {
       const familia = normalizarFamiliaPayload(req.body);
-      if (!familia.valido) return res.status(400).json({ error: familia.error });
+      if (!familia.valido)
+        return res.status(400).json({ error: familia.error });
 
-      const data = await actualizarFamiliaConBeneficiario(loreto, Number(req.params.id), familia);
+      const data = await actualizarFamiliaConBeneficiario(
+        loreto,
+        Number(req.params.id),
+        familia,
+      );
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar familia' });
+      res.status(500).json({ error: "Error al actualizar familia" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await loreto.familias.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Familia eliminada' });
+      res.json({ message: "Familia eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar familia' });
+      res.status(500).json({ error: "Error al eliminar familia" });
     }
-  }
+  },
 };
 
 const entregas = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.entregas.findMany({
-        include: { beneficiario: true, producto: true }
+        include: { beneficiario: true, producto: true },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener entregas' });
+      res.status(500).json({ error: "Error al obtener entregas" });
     }
   },
 
@@ -210,12 +225,13 @@ const entregas = {
     try {
       const data = await loreto.entregas.findUnique({
         where: { id: Number(req.params.id) },
-        include: { beneficiario: true, producto: true }
+        include: { beneficiario: true, producto: true },
       });
-      if (!data) return res.status(404).json({ error: 'Entrega no encontrada' });
+      if (!data)
+        return res.status(404).json({ error: "Entrega no encontrada" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener entrega' });
+      res.status(500).json({ error: "Error al obtener entrega" });
     }
   },
 
@@ -223,7 +239,7 @@ const entregas = {
     try {
       const { beneficiario_id, producto_id, cantidad } = req.body;
       const data = await loreto.entregas.create({
-        data: { beneficiario_id, producto_id, cantidad }
+        data: { beneficiario_id, producto_id, cantidad },
       });
 
       if (producto_id && cantidad) {
@@ -235,7 +251,7 @@ const entregas = {
 
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear entrega' });
+      res.status(500).json({ error: "Error al crear entrega" });
     }
   },
 
@@ -244,33 +260,39 @@ const entregas = {
       const { beneficiario_id, producto_id, cantidad } = req.body;
       const data = await loreto.entregas.update({
         where: { id: Number(req.params.id) },
-        data: { beneficiario_id, producto_id, cantidad }
+        data: { beneficiario_id, producto_id, cantidad },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar entrega' });
+      res.status(500).json({ error: "Error al actualizar entrega" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await loreto.entregas.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Entrega eliminada' });
+      res.json({ message: "Entrega eliminada" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar entrega' });
+      res.status(500).json({ error: "Error al eliminar entrega" });
     }
-  }
+  },
 };
 
 const productos = {
   getAll: async (req, res) => {
     try {
       const data = await loreto.productos.findMany({
-        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
+        include: {
+          categoria: true,
+          donaciones: true,
+          entregas: true,
+          movimientos: true,
+          transferencias: true,
+        },
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener productos' });
+      res.status(500).json({ error: "Error al obtener productos" });
     }
   },
 
@@ -278,12 +300,19 @@ const productos = {
     try {
       const data = await loreto.productos.findUnique({
         where: { id: Number(req.params.id) },
-        include: { categoria: true, donaciones: true, entregas: true, movimientos: true, transferencias: true }
+        include: {
+          categoria: true,
+          donaciones: true,
+          entregas: true,
+          movimientos: true,
+          transferencias: true,
+        },
       });
-      if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+      if (!data)
+        return res.status(404).json({ error: "Producto no encontrado" });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener producto' });
+      res.status(500).json({ error: "Error al obtener producto" });
     }
   },
 
@@ -291,14 +320,32 @@ const productos = {
     try {
       const { nombre, categoria_id, cantidad, unit } = req.body;
       const unitValidada = unitParaCrear(unit);
-      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+      if (!unitValidada.valido)
+        return res.status(400).json({ error: unitValidada.error });
 
       const data = await loreto.productos.create({
-        data: { nombre, categoria_id, cantidad, unit: unitValidada.valor }
+        data: { nombre, categoria_id, cantidad, unit: unitValidada.valor },
       });
+
+      // Ultimo cambio hecho, por si se rompe algo---------------------------------------------------------------------------------------------------
+
+      await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+        accion: "CREAR",
+        banco: process.env.BANCO_ID,
+        producto: {
+          id_producto: data.id,
+          nombre: data.nombre,
+          categoria_id: data.categoria_id,
+          cantidad: data.cantidad,
+          unit: data.unit,
+        },
+      }).catch((err) =>
+        console.error("Error al sincronizar replica:", err.message),
+      );
+
       res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al crear producto' });
+      res.status(500).json({ error: "Error al crear producto" });
     }
   },
 
@@ -306,54 +353,56 @@ const productos = {
     try {
       const { nombre, categoria_id, cantidad, unit } = req.body;
       const unitValidada = unitParaActualizar(unit);
-      if (!unitValidada.valido) return res.status(400).json({ error: unitValidada.error });
+      if (!unitValidada.valido)
+        return res.status(400).json({ error: unitValidada.error });
       const productoData = { nombre, categoria_id, cantidad };
-      if (unitValidada.valor !== undefined) productoData.unit = unitValidada.valor;
+      if (unitValidada.valor !== undefined)
+        productoData.unit = unitValidada.valor;
 
       const data = await loreto.productos.update({
         where: { id: Number(req.params.id) },
-        data: productoData
+        data: productoData,
       });
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: 'Error al actualizar producto' });
+      res.status(500).json({ error: "Error al actualizar producto" });
     }
   },
 
   delete: async (req, res) => {
     try {
       await loreto.productos.delete({ where: { id: Number(req.params.id) } });
-      res.json({ message: 'Producto eliminado' });
+      res.json({ message: "Producto eliminado" });
     } catch (error) {
-      res.status(500).json({ error: 'Error al eliminar producto' });
+      res.status(500).json({ error: "Error al eliminar producto" });
     }
-  }
+  },
 };
 
 // ─────────────────────────────────────────
 //  TRANSFERENCIAS
 // ─────────────────────────────────────────
-const donantes = crearCrud(loreto, 'donantes', {
-  label: 'donante',
-  buildData: datosDonante
+const donantes = crearCrud(loreto, "donantes", {
+  label: "donante",
+  buildData: datosDonante,
 });
 
-const donaciones = crearCrud(loreto, 'donaciones', {
-  label: 'donacion',
+const donaciones = crearCrud(loreto, "donaciones", {
+  label: "donacion",
   include: { producto: true },
-  buildData: datosDonacion
+  buildData: datosDonacion,
 });
 
-const movimientos = crearCrud(loreto, 'movimientos', {
-  label: 'movimiento',
+const movimientos = crearCrud(loreto, "movimientos", {
+  label: "movimiento",
   include: { producto: true },
-  buildData: datosMovimiento
+  buildData: datosMovimiento,
 });
 
-const transferencias = crearCrud(loreto, 'transferencias', {
-  label: 'transferencia',
+const transferencias = crearCrud(loreto, "transferencias", {
+  label: "transferencia",
   include: { producto: true },
-  buildData: datosTransferencia
+  buildData: datosTransferencia,
 });
 
 module.exports = {
@@ -365,5 +414,5 @@ module.exports = {
   transferencias,
   donaciones,
   donantes,
-  movimientos
+  movimientos,
 };

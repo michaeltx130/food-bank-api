@@ -297,6 +297,23 @@ const manejarTransferRequested = async (message) => {
     );
 
     await conn.commit();
+
+    await publicarEventoKafka(TOPICS.PRODUCTO_SYNC, {
+      accion: productoExistente ? "ACTUALIZAR" : "CREAR",
+      banco: BANCO_ID,
+      producto: {
+        id_producto: productoExistente ? productoExistente.id : null,
+        nombre: payload.producto_nombre,
+        categoria_id: payload.categoria_id,
+        cantidad: productoExistente
+          ? productoExistente.cantidad + payload.cantidad
+          : payload.cantidad,
+        unit: payload.producto_unit,
+      },
+    }).catch((err) =>
+      console.error("Error al sincronizar replica:", err.message),
+    );
+
     await publicarEventosPendientes(10);
 
     await enviarNotificacion({
